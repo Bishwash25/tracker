@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
-import { ArrowLeft, Calculator, Calendar, BarChart3, Trash2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Calculator, Calendar, BarChart3, Trash2, ChevronDown, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -184,6 +184,140 @@ export default function BMICalculator({ onBack }: { onBack: () => void }) {
     
     setShowConfirmDelete(false);
     setRecordToDelete(null);
+  };
+  
+  const handleDownloadRecords = () => {
+    if (bmiRecords.length === 0) {
+      toast({
+        title: "No records to download",
+        description: "Add some BMI records first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: "Download failed",
+        description: "Please allow popups to download your records",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create HTML content for the PDF
+    const sortedRecords = [...bmiRecords].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>BMI Records</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #333;
+            }
+            h1 {
+              color: #7e69ab;
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f5f5f5;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            }
+            .date {
+              color: #666;
+              font-size: 14px;
+            }
+            .category {
+              font-weight: bold;
+            }
+            .underweight { color: #3b82f6; }
+            .normal { color: #16a34a; }
+            .overweight { color: #eab308; }
+            .obesity-1 { color: #f97316; }
+            .obesity-2 { color: #ef4444; }
+            .obesity-3 { color: #b91c1c; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>BMI Records</h1>
+            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Height</th>
+                <th>Weight</th>
+                <th>BMI</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedRecords.map(record => {
+                const categoryClass = record.category === "Underweight" ? "underweight" :
+                  record.category === "Normal weight" ? "normal" :
+                  record.category === "Overweight" ? "overweight" :
+                  record.category === "Obesity Class I" ? "obesity-1" :
+                  record.category === "Obesity Class II" ? "obesity-2" : "obesity-3";
+                
+                return `
+                  <tr>
+                    <td>${format(new Date(record.date), "MMMM d, yyyy")}</td>
+                    <td>${record.height} ${record.heightUnit}</td>
+                    <td>${record.weight} ${record.weightUnit}</td>
+                    <td>${record.bmi}</td>
+                    <td class="category ${categoryClass}">${record.category}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = function() {
+      printWindow.print();
+      printWindow.close();
+    };
+
+    toast({
+      title: "Download started",
+      description: "Your BMI records are being prepared for download",
+    });
   };
   
   // Prepare data for the chart
@@ -389,8 +523,19 @@ export default function BMICalculator({ onBack }: { onBack: () => void }) {
       
       {viewMode === "records" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>BMI History</CardTitle>
+            {bmiRecords.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownloadRecords}
+                className="flex items-center gap-1"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {bmiRecords.length === 0 ? (

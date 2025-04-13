@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash2, Footprints, BarChart, ChevronDown } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Footprints, BarChart, ChevronDown, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
@@ -108,6 +108,133 @@ export default function KickCounter({ onBack }: { onBack: () => void }) {
     toast({
       title: "Session deleted",
       description: "Kick counter session removed successfully",
+    });
+  };
+
+  const handleDownloadRecords = () => {
+    if (sessions.length === 0) {
+      toast({
+        title: "No records to download",
+        description: "Add some kick sessions first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: "Download failed",
+        description: "Please allow popups to download your records",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create HTML content for the PDF
+    const sortedSessions = [...sessions].sort((a, b) => 
+      new Date(b.date + ' ' + b.startTime).getTime() - 
+      new Date(a.date + ' ' + a.startTime).getTime()
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Baby Kick Records</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #333;
+            }
+            h1 {
+              color: #7e69ab;
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f5f5f5;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            }
+            .date {
+              color: #666;
+              font-size: 14px;
+            }
+            .kicks {
+              font-weight: bold;
+            }
+            .low { color: #FEC6A1; }
+            .medium { color: #9b87f5; }
+            .high { color: #6E59A5; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Baby Kick Records</h1>
+            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Start Time</th>
+                <th>Duration</th>
+                <th>Kicks</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedSessions.map(session => {
+                const kickClass = session.kickCount <= 5 ? "low" : 
+                  session.kickCount <= 10 ? "medium" : "high";
+                
+                return `
+                  <tr>
+                    <td>${format(new Date(session.date), "MMMM d, yyyy")}</td>
+                    <td>${session.startTime}</td>
+                    <td>${session.duration}</td>
+                    <td class="kicks ${kickClass}">${session.kickCount}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = function() {
+      printWindow.print();
+      printWindow.close();
+    };
+
+    toast({
+      title: "Download started",
+      description: "Your baby kick records are being prepared for download",
     });
   };
 
@@ -259,8 +386,19 @@ export default function KickCounter({ onBack }: { onBack: () => void }) {
 
       {viewMode === "records" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Kick History</CardTitle>
+            {sessions.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownloadRecords}
+                className="flex items-center gap-1"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {sessions.length === 0 ? (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChevronLeft, Play, Square, Timer, Trash2, BarChart, ChevronDown } from "lucide-react";
+import { ChevronLeft, Play, Square, Timer, Trash2, BarChart, ChevronDown, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -205,6 +205,165 @@ export default function ContractionTimer({ onBack }: { onBack: () => void }) {
     });
   };
 
+  const handleDownloadRecords = () => {
+    if (sessions.length === 0) {
+      toast({
+        title: "No records to download",
+        description: "Add some contraction sessions first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: "Download failed",
+        description: "Please allow popups to download your records",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create HTML content for the PDF
+    const sortedSessions = [...sessions].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Contraction Records</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #333;
+            }
+            h1 {
+              color: #7e69ab;
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            h2 {
+              color: #ff7eb6;
+              margin-top: 20px;
+              margin-bottom: 10px;
+              font-size: 18px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f5f5f5;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            }
+            .date {
+              color: #666;
+              font-size: 14px;
+            }
+            .session-summary {
+              background-color: #f5f5f5;
+              padding: 10px;
+              border-radius: 4px;
+              margin-bottom: 15px;
+            }
+            .summary-item {
+              display: inline-block;
+              margin-right: 20px;
+            }
+            .summary-label {
+              font-size: 12px;
+              color: #666;
+            }
+            .summary-value {
+              font-weight: bold;
+              font-size: 14px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Contraction Records</h1>
+            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
+          </div>
+          
+          ${sortedSessions.map(session => `
+            <div>
+              <h2>Session on ${format(new Date(session.date), "MMMM d, yyyy")}</h2>
+              
+              <div class="session-summary">
+                <div class="summary-item">
+                  <div class="summary-label">Total Contractions</div>
+                  <div class="summary-value">${session.contractions.length}</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-label">Average Duration</div>
+                  <div class="summary-value">${session.averageDuration}</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-label">Average Interval</div>
+                  <div class="summary-value">${session.averageInterval}</div>
+                </div>
+              </div>
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th>Start Time</th>
+                    <th>Duration</th>
+                    <th>Interval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${session.contractions.map(contraction => `
+                    <tr>
+                      <td>${contraction.startTime}</td>
+                      <td>${contraction.duration}</td>
+                      <td>${contraction.interval}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `).join('')}
+        </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = function() {
+      printWindow.print();
+      printWindow.close();
+    };
+
+    toast({
+      title: "Download started",
+      description: "Your contraction records are being prepared for download",
+    });
+  };
+
   const getContractionFrequency = (): string => {
     if (contractions.length < 2) return "N/A";
     
@@ -391,8 +550,19 @@ export default function ContractionTimer({ onBack }: { onBack: () => void }) {
 
       {viewMode === "records" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Previous Sessions</CardTitle>
+            {sessions.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownloadRecords}
+                className="flex items-center gap-1"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {sessions.length === 0 ? (

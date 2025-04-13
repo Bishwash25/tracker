@@ -33,6 +33,7 @@ export default function PeriodTracking() {
   const [periodData, setPeriodData] = useState([]);
   const [userName, setUserName] = useState("");
   const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Load user data from localStorage
   useEffect(() => {
@@ -89,29 +90,42 @@ export default function PeriodTracking() {
     }
   }, []);
 
+  // Set up a timer to update the current time every minute
+  useEffect(() => {
+    // Update immediately
+    setCurrentTime(new Date());
+    
+    // Then update every minute
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // 60000 ms = 1 minute
+    
+    // Clean up the interval when component unmounts
+    return () => clearInterval(timer);
+  }, []);
+
   // Calculate countdown and generate chart data
   useEffect(() => {
     if (!periodStartDate) return;
 
-    const today = new Date();
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
     const nextPeriodStart = addDays(periodStartDate, cycleLength);
     setNextPeriodDate(nextPeriodStart);
     
     // Check if currently on period
-    if (today >= periodStartDate && today <= periodEnd) {
-      const daysLeft = differenceInDays(periodEnd, today) + 1;
+    if (currentTime >= periodStartDate && currentTime <= periodEnd) {
+      const daysLeft = differenceInDays(periodEnd, currentTime) + 1;
       setCountdown(daysLeft);
       setCountdownType("period");
     } else {
       // Calculate days until next period
-      const daysToNextPeriod = differenceInDays(nextPeriodStart, today);
+      const daysToNextPeriod = differenceInDays(nextPeriodStart, currentTime);
       setCountdown(daysToNextPeriod);
       setCountdownType("nextPeriod");
     }
 
     // Generate sample data for period flow chart if we're in a period
-    if (today >= periodStartDate && today <= periodEnd) {
+    if (currentTime >= periodStartDate && currentTime <= periodEnd) {
       const flowData = [];
       const totalDays = differenceInDays(periodEnd, periodStartDate) + 1;
       
@@ -129,7 +143,7 @@ export default function PeriodTracking() {
         }
         
         // Highlight today's bar
-        const isToday = differenceInDays(day, today) === 0;
+        const isToday = differenceInDays(day, currentTime) === 0;
         
         flowData.push({
           day: format(day, "MMM d"),
@@ -140,7 +154,7 @@ export default function PeriodTracking() {
       
       setPeriodData(flowData);
     }
-  }, [periodStartDate, periodEndDate, periodLength, cycleLength]);
+  }, [periodStartDate, periodEndDate, periodLength, cycleLength, currentTime]);
 
   const handleSave = () => {
     if (!periodStartDate || !periodEndDate) {

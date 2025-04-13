@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Share2, ChevronDown } from "lucide-react";
+import { ChevronLeft, Share2, ChevronDown, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -34,6 +34,18 @@ export default function GenderPredictor({ onBack }: GenderPredictionProps) {
   const [savedRecords, setSavedRecords] = useState<PredictionRecord[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("predict");
   const { toast } = useToast();
+
+  // Load saved records from localStorage on component mount
+  useEffect(() => {
+    const storedRecords = localStorage.getItem("genderPredictions");
+    if (storedRecords) {
+      try {
+        setSavedRecords(JSON.parse(storedRecords));
+      } catch (error) {
+        console.error("Error parsing gender predictions:", error);
+      }
+    }
+  }, []);
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -70,7 +82,11 @@ export default function GenderPredictor({ onBack }: GenderPredictionProps) {
       date: new Date().toLocaleString()
     };
     
-    setSavedRecords([newRecord, ...savedRecords]);
+    const updatedRecords = [newRecord, ...savedRecords];
+    setSavedRecords(updatedRecords);
+    
+    // Save to localStorage
+    localStorage.setItem("genderPredictions", JSON.stringify(updatedRecords));
     
     toast({
       title: "Record saved",
@@ -79,6 +95,19 @@ export default function GenderPredictor({ onBack }: GenderPredictionProps) {
     
     // Switch to records view after saving
     setViewMode("records");
+  };
+
+  const deleteRecord = (id: string) => {
+    const updatedRecords = savedRecords.filter(record => record.id !== id);
+    setSavedRecords(updatedRecords);
+    
+    // Update localStorage
+    localStorage.setItem("genderPredictions", JSON.stringify(updatedRecords));
+    
+    toast({
+      title: "Record deleted",
+      description: "Prediction record has been removed",
+    });
   };
 
   const shareRecord = (record: PredictionRecord) => {
@@ -238,14 +267,24 @@ export default function GenderPredictor({ onBack }: GenderPredictionProps) {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">{record.date}</p>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => shareRecord(record)}
-                        >
-                          <Share2 className="h-4 w-4 mr-1" />
-                          Share
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => shareRecord(record)}
+                          >
+                            <Share2 className="h-4 w-4 mr-1" />
+                            Share
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => deleteRecord(record.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

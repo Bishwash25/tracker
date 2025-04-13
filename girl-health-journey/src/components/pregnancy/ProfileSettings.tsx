@@ -14,11 +14,12 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 
 export default function ProfileSettings() {
   const [user, setUser] = useState({
-    fullName: "User Name",
-    email: "user@example.com"
+    email: ""
   });
 
   const [dueDate, setDueDate] = useState<Date | null>(null);
@@ -45,7 +46,10 @@ export default function ProfileSettings() {
     
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser({
+          email: parsedUser.email || ""
+        });
       } catch (e) {
         console.error("Error parsing user data", e);
       }
@@ -53,7 +57,7 @@ export default function ProfileSettings() {
   }, []);
 
   const handleProfileUpdate = () => {
-    localStorage.setItem("user", JSON.stringify(user));
+    // No need to update email as it's read-only
     toast({
       title: "Profile updated",
       description: "Your profile has been updated successfully"
@@ -80,17 +84,46 @@ export default function ProfileSettings() {
     });
   };
 
-  const handleLogout = () => {
-    // Clear user data from localStorage but keep tracking data
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      await signOut(auth);
+      
+      // Clear user data from localStorage
+      localStorage.removeItem("user");
+      
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully"
+      });
+      
+      // Navigate to the tracking choice page
+      navigate("/tracking-choice");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReset = () => {
+    // Clear pregnancy tracking data from localStorage
+    localStorage.removeItem("lastPeriodDate");
+    localStorage.removeItem("dueDate");
+    localStorage.removeItem("pregnancyStartDate");
     
     toast({
-      title: "Logged out",
-      description: "You have been logged out successfully"
+      title: "Data reset",
+      description: "Your pregnancy tracking data has been reset"
     });
     
-    // Navigate to the TrackingChoice page immediately
-    navigate("/tracking-choice");
+    // Navigate to the pregnancy start page
+    setTimeout(() => {
+      navigate("/pregnancy-start");
+    }, 1500);
   };
 
   return (
@@ -104,15 +137,6 @@ export default function ProfileSettings() {
           <CardDescription>Update your personal information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input 
-              id="fullName" 
-              value={user.fullName} 
-              onChange={(e) => setUser({...user, fullName: e.target.value})} 
-              className="bg-gray-50"
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input 
@@ -187,7 +211,15 @@ export default function ProfileSettings() {
         <CardHeader>
           <CardTitle className="text-lg">Account</CardTitle>
         </CardHeader>
-        <CardFooter>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Reset your pregnancy tracking data to start over with a new pregnancy.
+          </p>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2">
+          <Button variant="outline" onClick={handleReset} className="w-full">
+            Reset Pregnancy Data
+          </Button>
           <Button variant="destructive" onClick={handleLogout} className="w-full">
             Logout
           </Button>

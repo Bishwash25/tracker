@@ -180,6 +180,21 @@ export default function PregnancyDashboard() {
   const [daysToGo, setDaysToGo] = useState(0);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [currentFruit, setCurrentFruit] = useState<{ emoji: string, name: string }>({ emoji: "🌸", name: "Poppy Seed" });
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Set up a timer to update the current time every minute
+  useEffect(() => {
+    // Update immediately
+    setCurrentTime(new Date());
+    
+    // Then update every minute
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // 60000 ms = 1 minute
+    
+    // Clean up the interval when component unmounts
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     // Load data from localStorage
@@ -192,55 +207,59 @@ export default function PregnancyDashboard() {
       
       setLastPeriodDate(lastPeriod);
       setDueDate(due);
-      
-      // Calculate pregnancy progress
-      const today = new Date();
-      const totalWeeks = differenceInWeeks(today, lastPeriod);
-      const exactDays = differenceInDays(today, lastPeriod);
-      const remainingDays = exactDays % 7;
-      const daysRemaining = differenceInDays(due, today);
-      
-      // Handle edge case: if at 41 weeks and 6+ days, display as 42 weeks
-      let displayWeeks = totalWeeks;
-      let displayDays = remainingDays;
-      
-      if ((totalWeeks === 41 && remainingDays >= 6) || 
-          (totalWeeks === 41 && remainingDays === 0 && exactDays >= 294)) {
-        displayWeeks = 42;
-        displayDays = 0;
-      }
-      
-      // Cap weeks at 42 for display purposes
-      if (displayWeeks > 42) {
-        displayWeeks = 42;
-        displayDays = 0;
-      }
-      
-      setWeeksPregnant(displayWeeks);
-      setDaysPregnant(displayDays);
-      setDaysToGo(daysRemaining);
-      
-      // Get the current fruit emoji and name directly from our mapping
-      const currentFruitInfo = fruitEmojis[displayWeeks] || getFruitForWeek(displayWeeks);
-      setCurrentFruit(currentFruitInfo);
-      
-      // Get baby size comparison - use the week number that's within valid range for display
-      // Cap at 42 weeks maximum
-      const weekInfo = Math.min(Math.max(displayWeeks, 1), 42);
-      
-      // Create a consistent baby info object
-      setBabyInfo({
-        fruit: babySizeData[weekInfo].fruit === "baby" ? "Baby" : babySizeData[weekInfo].fruit,
-        length: babySizeData[weekInfo].lengthCm,
-        lengthIn: babySizeData[weekInfo].lengthIn,
-        weight: babySizeData[weekInfo].weightG,
-        weightLb: babySizeData[weekInfo].weightLb
-      });
-      
-      // Calculate progress percentage - cap at 100%
-      setProgressPercentage(Math.min((displayWeeks / 40) * 100, 100));
     }
   }, []);
+
+  // Calculate pregnancy progress based on current time
+  useEffect(() => {
+    if (!lastPeriodDate || !dueDate) return;
+    
+    // Calculate pregnancy progress
+    const totalWeeks = differenceInWeeks(currentTime, lastPeriodDate);
+    const exactDays = differenceInDays(currentTime, lastPeriodDate);
+    const remainingDays = exactDays % 7;
+    const daysRemaining = differenceInDays(dueDate, currentTime);
+    
+    // Handle edge case: if at 41 weeks and 6+ days, display as 42 weeks
+    let displayWeeks = totalWeeks;
+    let displayDays = remainingDays;
+    
+    if ((totalWeeks === 41 && remainingDays >= 6) || 
+        (totalWeeks === 41 && remainingDays === 0 && exactDays >= 294)) {
+      displayWeeks = 42;
+      displayDays = 0;
+    }
+    
+    // Cap weeks at 42 for display purposes
+    if (displayWeeks > 42) {
+      displayWeeks = 42;
+      displayDays = 0;
+    }
+    
+    setWeeksPregnant(displayWeeks);
+    setDaysPregnant(displayDays);
+    setDaysToGo(daysRemaining);
+    
+    // Get the current fruit emoji and name directly from our mapping
+    const currentFruitInfo = fruitEmojis[displayWeeks] || getFruitForWeek(displayWeeks);
+    setCurrentFruit(currentFruitInfo);
+    
+    // Get baby size comparison - use the week number that's within valid range for display
+    // Cap at 42 weeks maximum
+    const weekInfo = Math.min(Math.max(displayWeeks, 1), 42);
+    
+    // Create a consistent baby info object
+    setBabyInfo({
+      fruit: babySizeData[weekInfo].fruit === "baby" ? "Baby" : babySizeData[weekInfo].fruit,
+      length: babySizeData[weekInfo].lengthCm,
+      lengthIn: babySizeData[weekInfo].lengthIn,
+      weight: babySizeData[weekInfo].weightG,
+      weightLb: babySizeData[weekInfo].weightLb
+    });
+    
+    // Calculate progress percentage - cap at 100%
+    setProgressPercentage(Math.min((displayWeeks / 40) * 100, 100));
+  }, [lastPeriodDate, dueDate, currentTime]);
 
   return (
     <div className="space-y-6">

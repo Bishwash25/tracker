@@ -7,11 +7,12 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { User, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 
 export default function PeriodProfile() {
   const [user, setUser] = useState({
-    fullName: "User Name",
-    email: "user@example.com",
+    email: "",
   });
 
   const { toast } = useToast();
@@ -19,13 +20,14 @@ export default function PeriodProfile() {
   
   useEffect(() => {
     // Load data from localStorage
-    const storedUser = localStorage.getItem("periodUser");
+    const storedUser = localStorage.getItem("user");
     
     if (storedUser) {
       try {
+        const parsedUser = JSON.parse(storedUser);
         setUser(prevUser => ({
           ...prevUser,
-          ...JSON.parse(storedUser)
+          email: parsedUser.email || ""
         }));
       } catch (e) {
         console.error("Error parsing user data", e);
@@ -34,30 +36,55 @@ export default function PeriodProfile() {
   }, []);
 
   const handleProfileUpdate = () => {
-    localStorage.setItem("periodUser", JSON.stringify({
-      fullName: user.fullName,
-      email: user.email,
-    }));
-    
+    // No need to update email as it's read-only
     toast({
       title: "Profile updated",
       description: "Your profile has been updated successfully"
     });
   };
 
-  const handleLogout = () => {
-    // Clear necessary data from localStorage
-    localStorage.removeItem("periodUser");
-    // Don't remove period data in case user wants to log back in
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      await signOut(auth);
+      
+      // Clear user data from localStorage
+      localStorage.removeItem("user");
+      
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully"
+      });
+      
+      // Navigate to the tracking choice page
+      setTimeout(() => {
+        navigate("/tracking-choice");
+      }, 1500);
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReset = () => {
+    // Clear period tracking data from localStorage
+    localStorage.removeItem("periodStartDate");
+    localStorage.removeItem("periodEndDate");
+    localStorage.removeItem("cycleLength");
+    localStorage.removeItem("periodLength");
     
     toast({
-      title: "Logged out",
-      description: "You have been logged out successfully"
+      title: "Data reset",
+      description: "Your period tracking data has been reset"
     });
     
-    // Navigate to the tracking choice page
+    // Navigate to the period start page
     setTimeout(() => {
-      navigate("/tracking-choice");
+      navigate("/period-start");
     }, 1500);
   };
 
@@ -71,33 +98,24 @@ export default function PeriodProfile() {
           <CardHeader className="pb-4">
             <div className="flex flex-col items-center space-y-3">
               <Avatar className="h-24 w-24">
-                <AvatarImage src="" alt={user.fullName} />
+                <AvatarImage src="" alt="User" />
                 <AvatarFallback className="text-2xl bg-lavender/20 text-lavender">
-                  {user.fullName.split(' ').map(n => n[0]).join('')}
+                  U
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-1 text-center">
-                <CardTitle>{user.fullName}</CardTitle>
-                <CardDescription>{user.email}</CardDescription>
+                <CardTitle>Profile</CardTitle>
+                <CardDescription>{user.email || 'No email available'}</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input 
-                id="fullName" 
-                value={user.fullName} 
-                onChange={(e) => setUser({...user, fullName: e.target.value})} 
-                className="bg-gray-50"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input 
                 id="email" 
                 value={user.email} 
-                readOnly 
+                readOnly
                 className="bg-gray-100"
               />
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
@@ -116,7 +134,15 @@ export default function PeriodProfile() {
           <CardHeader>
             <CardTitle className="text-lg">Account</CardTitle>
           </CardHeader>
-          <CardFooter>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Reset your period tracking data to start over with a new cycle.
+            </p>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-2">
+            <Button variant="outline" onClick={handleReset} className="w-full">
+              Reset Period Data
+            </Button>
             <Button variant="destructive" onClick={handleLogout} className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
               Logout

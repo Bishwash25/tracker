@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash2, BarChart, ChevronDown } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, BarChart, ChevronDown, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -121,6 +121,132 @@ export default function ExerciseLog({ onBack }: { onBack: () => void }) {
     toast({
       title: "Record deleted",
       description: "Exercise record removed successfully",
+    });
+  };
+
+  const handleDownloadRecords = () => {
+    if (records.length === 0) {
+      toast({
+        title: "No records to download",
+        description: "Add some exercise records first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: "Download failed",
+        description: "Please allow popups to download your records",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create HTML content for the PDF
+    const sortedRecords = [...records].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Exercise Records</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #333;
+            }
+            h1 {
+              color: #7e69ab;
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f5f5f5;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            }
+            .date {
+              color: #666;
+              font-size: 14px;
+            }
+            .intensity {
+              font-weight: bold;
+            }
+            .low { color: #16a34a; }
+            .moderate { color: #eab308; }
+            .high { color: #ef4444; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Exercise Records</h1>
+            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Duration</th>
+                <th>Intensity</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedRecords.map(record => {
+                const intensityClass = record.intensity.toLowerCase();
+                return `
+                  <tr>
+                    <td>${format(new Date(record.date), "MMMM d, yyyy")}</td>
+                    <td>${record.type}</td>
+                    <td>${record.duration} min</td>
+                    <td class="intensity ${intensityClass}">${record.intensity}</td>
+                    <td>${record.note || "-"}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = function() {
+      printWindow.print();
+      printWindow.close();
+    };
+
+    toast({
+      title: "Download started",
+      description: "Your exercise records are being prepared for download",
     });
   };
 
@@ -263,8 +389,19 @@ export default function ExerciseLog({ onBack }: { onBack: () => void }) {
 
       {viewMode === "records" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Exercise History</CardTitle>
+            {records.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownloadRecords}
+                className="flex items-center gap-1"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {records.length === 0 ? (

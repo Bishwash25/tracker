@@ -4,7 +4,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Droplets, Egg, Heart, Share } from "lucide-react";
+import { CalendarDays, Droplets, Egg, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
@@ -143,24 +143,6 @@ export default function PeriodDashboard() {
       default:
         return "";
     }
-  };
-
-  const sharePeriodDetails = () => {
-    if (!periodStartDate || !nextPeriodDate) return;
-    
-    const message = `
-My Period Details:
-Last Period: ${format(periodStartDate, "MMMM d, yyyy")}
-Period Length: ${periodLength} days
-Cycle Length: ${cycleLength} days
-Next Period: ${format(nextPeriodDate, "MMMM d, yyyy")}
-Current Cycle Day: ${cycleDay}
-    `.trim();
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    
-    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -323,18 +305,6 @@ Current Cycle Day: ${cycleDay}
                   </span>
                 </div>
               </div>
-              
-              {periodStartDate && nextPeriodDate && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full mt-4 flex items-center gap-2"
-                  onClick={sharePeriodDetails}
-                >
-                  <Share className="h-4 w-4" />
-                  Share via WhatsApp
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>

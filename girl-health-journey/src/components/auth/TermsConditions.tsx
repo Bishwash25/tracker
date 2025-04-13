@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +22,9 @@ export default function TermsConditions() {
       return;
     }
 
+    // Set terms accepted flag in localStorage
+    localStorage.setItem('termsAccepted', 'true');
+    
     navigate("/tracking-choice");
   };
 

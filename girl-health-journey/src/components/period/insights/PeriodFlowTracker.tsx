@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
-import { Droplet, Save, Plus, Minus, Share, ChevronDown } from "lucide-react";
+import { Droplet, Save, Plus, Minus, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -108,30 +108,6 @@ export default function PeriodFlowTracker() {
     toast({
       title: "Record deleted",
       description: "Flow record has been removed.",
-    });
-  };
-
-  const shareRecord = (record: FormValues & { id: string }) => {
-    const formattedDate = format(new Date(record.date), "MMM d, yyyy");
-    
-    const message = `
-Period Flow - ${formattedDate}
-Period Day: ${record.periodDay}
-Flow: ${record.flow}
-Color: ${record.color}
-Pain Level: ${record.painLevel}/10
-Pads/Tampons Changed: ${record.padsChanged}
-${record.notes ? `Notes: ${record.notes}` : ''}
-    `.trim();
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    
-    window.open(whatsappUrl, '_blank');
-    
-    toast({
-      title: "Sharing...",
-      description: "Opening WhatsApp to share your flow record.",
     });
   };
 
@@ -346,14 +322,6 @@ ${record.notes ? `Notes: ${record.notes}` : ''}
                       {record.notes && <p className="text-sm mt-1">{record.notes}</p>}
                     </div>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => shareRecord(record)}
-                        className="h-8 w-8 text-primary"
-                      >
-                        <Share className="h-4 w-4" />
-                      </Button>
                       <Button 
                         variant="ghost" 
                         size="sm" 

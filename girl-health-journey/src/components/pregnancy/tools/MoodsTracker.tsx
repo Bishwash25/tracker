@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
-import { Smile, Save, Plus, Minus, Share, ArrowLeft, Trash2, ChevronDown } from "lucide-react";
+import { Smile, Save, Plus, Minus, Share, ArrowLeft, Trash2, ChevronDown, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,6 +157,176 @@ export default function MoodsTracker({ onBack }: { onBack: () => void }) {
     
     setShowConfirmDelete(false);
     setMoodToDelete(null);
+  };
+
+  const handleDownloadRecords = () => {
+    if (savedMoods.length === 0) {
+      toast({
+        title: "No records to download",
+        description: "Add some mood records first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: "Download failed",
+        description: "Please allow popups to download your records",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create HTML content for the PDF
+    const sortedMoods = [...savedMoods].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Mood Records</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #333;
+            }
+            h1 {
+              color: #7e69ab;
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            h2 {
+              color: #ff7eb6;
+              margin-top: 20px;
+              margin-bottom: 10px;
+              font-size: 18px;
+            }
+            .mood-record {
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              padding: 15px;
+              margin-bottom: 20px;
+            }
+            .mood-header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 5px;
+            }
+            .mood-date {
+              font-weight: bold;
+              font-size: 16px;
+            }
+            .mood-item {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 5px;
+            }
+            .mood-name {
+              flex: 1;
+            }
+            .mood-intensity {
+              width: 150px;
+              display: flex;
+              align-items: center;
+            }
+            .intensity-bar {
+              height: 10px;
+              background-color: #f0f0f0;
+              border-radius: 5px;
+              width: 100px;
+              margin-right: 10px;
+              overflow: hidden;
+            }
+            .intensity-fill {
+              height: 100%;
+              background-color: #ff7eb6;
+              border-radius: 5px;
+            }
+            .intensity-value {
+              font-size: 12px;
+              min-width: 30px;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            }
+            .date {
+              color: #666;
+              font-size: 14px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Mood Records</h1>
+            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
+          </div>
+          
+          ${sortedMoods.map(moodRecord => `
+            <div class="mood-record">
+              <div class="mood-header">
+                <div class="mood-date">${formatDate(moodRecord.date)}</div>
+              </div>
+              
+              ${moods.map(mood => {
+                const fieldName = mood.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const intensityValue = moodRecord[fieldName as keyof FormValues] as number;
+                if (intensityValue > 0) {
+                  return `
+                    <div class="mood-item">
+                      <div class="mood-name">${mood}</div>
+                      <div class="mood-intensity">
+                        <div class="intensity-bar">
+                          <div class="intensity-fill" style="width: ${intensityValue}%"></div>
+                        </div>
+                        <div class="intensity-value">${intensityValue}%</div>
+                      </div>
+                    </div>
+                  `;
+                }
+                return '';
+              }).join('')}
+              
+              ${moodRecord.other_mood && moodRecord.other_intensity ? `
+                <div class="mood-item">
+                  <div class="mood-name">Other (${moodRecord.other_mood})</div>
+                  <div class="mood-intensity">
+                    <div class="intensity-bar">
+                      <div class="intensity-fill" style="width: ${moodRecord.other_intensity}%"></div>
+                    </div>
+                    <div class="intensity-value">${moodRecord.other_intensity}%</div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = function() {
+      printWindow.print();
+      printWindow.close();
+    };
+
+    toast({
+      title: "Download started",
+      description: "Your mood records are being prepared for download",
+    });
   };
 
   const formatDate = (dateString: string | Date) => {
@@ -334,8 +504,19 @@ export default function MoodsTracker({ onBack }: { onBack: () => void }) {
 
       {viewMode === "history" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Your Mood History</CardTitle>
+            {savedMoods.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownloadRecords}
+                className="flex items-center gap-1"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {savedMoods.length === 0 ? (

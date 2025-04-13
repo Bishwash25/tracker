@@ -20,10 +20,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, AlertCircle } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Calculate the minimum allowed date (42 weeks ago)
 const minAllowedDate = subWeeks(new Date(), 42);
@@ -159,13 +158,6 @@ export default function PregnancyStart() {
                 </FormItem>
               )}
             />
-            <Alert className="bg-calmteal/10 border-calmteal/30">
-              <AlertCircle className="h-4 w-4 text-calmteal" />
-              <AlertTitle className="text-calmteal">Validation Note</AlertTitle>
-              <AlertDescription className="text-sm">
-                For accurate pregnancy tracking, you can only select a date between today and 42 weeks ago. If your last period was earlier than this, please consult with your healthcare provider.
-              </AlertDescription>
-            </Alert>
             <Button type="submit" className="w-full">
               Calculate Due Date
             </Button>

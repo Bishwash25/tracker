@@ -9,12 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CalendarDays, Baby } from "lucide-react";
+import { CalendarDays, Baby, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TrackingChoice() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("");
+  const { toast } = useToast();
 
   useEffect(() => {
     // Get user data from localStorage
@@ -29,11 +31,26 @@ export default function TrackingChoice() {
     }
   }, [navigate]);
 
+  const handleSignOut = () => {
+    // Don't clear user data from localStorage
+    // Just navigate to the login page
+    toast({
+      title: "Signed out",
+      description: "You have been signed out",
+    });
+    
+    // Navigate to the login page
+    navigate("/");
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-heading font-bold text-center text-lavender mb-2">
-        {userName ? `Welcome, ${userName}!` : 'Choose Your Tracking Journey'}
-      </h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-heading font-bold text-lavender">
+          {userName ? `Welcome, ${userName}!` : 'Choose Your Tracking Journey'}
+        </h1>
+      </div>
+      
       <p className="text-center text-muted-foreground mb-10">
         {userName ? 'Choose your health tracking journey' : 'Select a tracking option to get started'}
       </p>
@@ -76,9 +93,19 @@ export default function TrackingChoice() {
             <CardFooter>
               <Button 
                 className="w-full bg-softpink hover:bg-softpink/80"
-                onClick={() => navigate("/period-start")}
+                onClick={() => {
+                  // Check if user has already set up period tracking
+                  const hasPeriodData = localStorage.getItem("periodStartDate") !== null;
+                  if (hasPeriodData) {
+                    navigate("/period-dashboard");
+                  } else {
+                    navigate("/period-start");
+                  }
+                }}
               >
-                Start Period Tracking
+                {localStorage.getItem("periodStartDate") !== null 
+                  ? "View Period Dashboard" 
+                  : "Start Period Tracking"}
               </Button>
             </CardFooter>
           </Card>
@@ -121,13 +148,34 @@ export default function TrackingChoice() {
             <CardFooter>
               <Button 
                 className="w-full bg-calmteal hover:bg-calmteal/80"
-                onClick={() => navigate("/pregnancy-start")}
+                onClick={() => {
+                  // Check if user has already set up pregnancy tracking
+                  const hasPregnancyData = localStorage.getItem("lastPeriodDate") !== null;
+                  if (hasPregnancyData) {
+                    navigate("/pregnancy-dashboard");
+                  } else {
+                    navigate("/pregnancy-start");
+                  }
+                }}
               >
-                Start Pregnancy Tracking
+                {localStorage.getItem("lastPeriodDate") !== null 
+                  ? "View Pregnancy Dashboard" 
+                  : "Start Pregnancy Tracking"}
               </Button>
             </CardFooter>
           </Card>
         </motion.div>
+      </div>
+
+      <div className="mt-12 text-center">
+        <Button 
+          variant="destructive"
+          onClick={handleSignOut}
+          className="flex items-center gap-2 mx-auto"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
       </div>
     </div>
   );

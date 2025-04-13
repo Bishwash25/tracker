@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChevronLeft, Utensils, Info, ChevronDown } from "lucide-react";
+import { ChevronLeft, Utensils, Info, ChevronDown, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface Meal {
   name: string;
@@ -33,21 +34,53 @@ type ViewMode = "tips" | "mealPlan";
 export default function MealPlans({ onBack }: { onBack: () => void }) {
   const [activeTab, setActiveTab] = useState("trimester1");
   const [currentWeek, setCurrentWeek] = useState<number>(0);
+  const [currentDays, setCurrentDays] = useState<number>(0);
   const [showRecipe, setShowRecipe] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("tips");
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
+  // Set up a timer to update the current time every minute
+  useEffect(() => {
+    // Update immediately
+    setCurrentTime(new Date());
+    setLastUpdate(new Date());
+    
+    // Then update every minute
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      setLastUpdate(now);
+    }, 60000); // 60000 ms = 1 minute
+    
+    // Clean up the interval when component unmounts
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate current pregnancy week and days based on last period date
   useEffect(() => {
     // Load pregnancy week data from localStorage
     const storedLastPeriodDate = localStorage.getItem("lastPeriodDate");
     
     if (storedLastPeriodDate) {
       const lastPeriod = new Date(storedLastPeriodDate);
-      const today = new Date();
-      const diffTime = Math.abs(today.getTime() - lastPeriod.getTime());
-      const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+      const diffTime = Math.abs(currentTime.getTime() - lastPeriod.getTime());
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffWeeks = Math.floor(diffDays / 7);
+      const remainingDays = diffDays % 7;
+      
       setCurrentWeek(diffWeeks);
+      setCurrentDays(remainingDays);
     }
-  }, []);
+  }, [currentTime]);
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    const now = new Date();
+    setCurrentTime(now);
+    setLastUpdate(now);
+    toast.success("Nutrition tips updated!");
+  };
 
   // Get nutrition tips based on current week
   const getNutritionTips = (): NutritionTips => {
@@ -831,7 +864,7 @@ export default function MealPlans({ onBack }: { onBack: () => void }) {
   // Get the view title based on current mode
   const getViewTitle = () => {
     switch (viewMode) {
-      case "tips": return `Nutrition Tips for Week ${currentWeek}`;
+      case "tips": return `Nutrition Tips for Week ${currentWeek} + ${currentDays} days`;
       case "mealPlan": return "Weekly Meal Plan";
       default: return "Pregnancy Meal Plans";
     }
@@ -850,14 +883,29 @@ export default function MealPlans({ onBack }: { onBack: () => void }) {
 
   const nutritionTips = getNutritionTips();
 
+  // Format the last update time
+  const formatLastUpdate = () => {
+    const hours = lastUpdate.getHours().toString().padStart(2, '0');
+    const minutes = lastUpdate.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="flex items-center">
-          <Button variant="ghost" size="icon" onClick={onBack} className="mr-2">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Pregnancy Meal Plans</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" onClick={onBack} className="mr-2">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold">Pregnancy Meal Plans</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Last updated: {formatLastUpdate()}</span>
+            <Button variant="outline" size="icon" onClick={handleRefresh} className="h-8 w-8">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         <div>
@@ -869,7 +917,7 @@ export default function MealPlans({ onBack }: { onBack: () => void }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[160px]">
               <DropdownMenuItem onClick={() => setViewMode("tips")}>
-                Nutrition Tips for Week {currentWeek}
+                Nutrition Tips for Week {currentWeek} + {currentDays} days
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setViewMode("mealPlan")}>
                 Weekly Meal Plan
@@ -883,7 +931,7 @@ export default function MealPlans({ onBack }: { onBack: () => void }) {
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Nutrition Tips for Week {currentWeek}</CardTitle>
+              <CardTitle className="text-lg">Nutrition Tips for Week {currentWeek} + {currentDays} days</CardTitle>
               <CardDescription>
                 Personalized nutrition guidance based on your current pregnancy stage.
               </CardDescription>
