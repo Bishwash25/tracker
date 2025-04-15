@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
@@ -18,9 +18,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase services
-export const auth = getAuth(app);
+const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const analytics = getAnalytics(app);
 
+// Enable persistent auth state across browser sessions and page reloads
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log("Firebase persistence initialized");
+  })
+  .catch((error) => {
+    console.error("Error setting persistence:", error);
+  });
+
+export { auth };
 export default app; 

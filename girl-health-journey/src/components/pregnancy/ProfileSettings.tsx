@@ -18,21 +18,17 @@ import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 
 export default function ProfileSettings() {
-  const [user, setUser] = useState({
-    email: ""
-  });
-
+  const [userEmail, setUserEmail] = useState("");
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [selectedDueDate, setSelectedDueDate] = useState<Date | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  useEffect(() => {
-    // Load data from localStorage
+  const loadUserData = () => {
+    // Load pregnancy-specific data first
     const storedLastPeriodDate = localStorage.getItem("lastPeriodDate");
     const storedDueDate = localStorage.getItem("dueDate");
-    const storedUser = localStorage.getItem("user");
     
     if (storedLastPeriodDate) {
       setLastPeriodDate(format(new Date(storedLastPeriodDate), "MMMM d, yyyy"));
@@ -44,25 +40,74 @@ export default function ProfileSettings() {
       setSelectedDueDate(parsedDueDate);
     }
     
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser({
-          email: parsedUser.email || ""
-        });
-      } catch (e) {
-        console.error("Error parsing user data", e);
-      }
+    // Try to get user data from multiple sources in order of priority
+    
+    // 1. Check Firebase Auth first
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email) {
+      setUserEmail(currentUser.email);
+      return;
     }
-  }, []);
-
-  const handleProfileUpdate = () => {
-    // No need to update email as it's read-only
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been updated successfully"
-    });
+    
+    // 2. Try localStorage
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUserEmail(parsedUser.email || "");
+        return;
+      }
+    } catch (e) {
+      console.error("Error parsing user data from localStorage", e);
+    }
+    
+    // 3. Try sessionStorage
+    try {
+      const sessionUser = sessionStorage.getItem("user");
+      if (sessionUser) {
+        const parsedUser = JSON.parse(sessionUser);
+        setUserEmail(parsedUser.email || "");
+        return;
+      }
+    } catch (e) {
+      console.error("Error parsing user data from sessionStorage", e);
+    }
+    
+    // 4. Try cookies
+    try {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'userData') {
+          const userData = JSON.parse(decodeURIComponent(value));
+          setUserEmail(userData.email || "");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing user data from cookies", e);
+    }
   };
+  
+  // Initial load
+  useEffect(() => {
+    loadUserData();
+  }, []);
+  
+  // Refresh data when component is focused
+  useEffect(() => {
+    // Create an event listener for when the window gains focus
+    const handleFocus = () => {
+      loadUserData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   const handleDueDateUpdate = () => {
     if (!selectedDueDate) {
@@ -86,19 +131,18 @@ export default function ProfileSettings() {
 
   const handleLogout = async () => {
     try {
-      // Sign out from Firebase
-      await signOut(auth);
-      
-      // Clear user data from localStorage
-      localStorage.removeItem("user");
-      
+      // Show toast first
       toast({
-        title: "Logged out",
-        description: "You have been logged out successfully"
+        title: "Logging out",
+        description: "You are being logged out..."
       });
+      
+      // Only sign out from Firebase without clearing localStorage data
+      await signOut(auth);
       
       // Navigate to the tracking choice page
       navigate("/tracking-choice");
+      
     } catch (error) {
       console.error("Error signing out:", error);
       toast({
@@ -128,32 +172,7 @@ export default function ProfileSettings() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Profile & Settings</h1>
-
-      {/* Profile Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Profile</CardTitle>
-          <CardDescription>Update your personal information</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input 
-              id="email" 
-              value={user.email} 
-              readOnly 
-              className="bg-gray-100"
-            />
-            <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={handleProfileUpdate} className="w-full bg-softpink hover:bg-softpink/90">
-            Update Profile
-          </Button>
-        </CardFooter>
-      </Card>
+      <h1 className="text-2xl font-bold">Settings</h1>
 
       {/* Pregnancy Settings */}
       <Card>
@@ -210,13 +229,14 @@ export default function ProfileSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Account</CardTitle>
+          <CardDescription>{userEmail}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Reset your pregnancy tracking data to start over with a new pregnancy.
           </p>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
+        <CardFooter className="flex flex-col space-y-4">
           <Button variant="outline" onClick={handleReset} className="w-full">
             Reset Pregnancy Data
           </Button>
@@ -228,3 +248,4 @@ export default function ProfileSettings() {
     </div>
   );
 }
+

@@ -9,27 +9,113 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CalendarDays, Baby, LogOut } from "lucide-react";
+import { CalendarDays, Baby, LogOut, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function TrackingChoice() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Get user data from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const { name } = JSON.parse(userData);
-        setUserName(name);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
+  // Function to get user data from cookie
+  const getUserDataFromCookie = () => {
+    const cookies = document.cookie.split(';');
+    let userData = null;
+    
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'userData') {
+        try {
+          userData = JSON.parse(decodeURIComponent(value));
+          return userData;
+        } catch (e) {
+          console.error('Error parsing user data from cookie:', e);
+        }
       }
     }
-  }, [navigate]);
+    
+    return null;
+  };
+
+  // Function to load user data from all possible storage locations
+  const loadUserData = () => {
+    // Try to get data from multiple sources in order of priority
+    
+    // 1. Check Firebase Auth first
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      setUserName(currentUser.displayName || "");
+      setUserEmail(currentUser.email || "");
+      return;
+    }
+    
+    // 2. Try localStorage
+    try {
+      const localData = localStorage.getItem('user');
+      if (localData) {
+        const userData = JSON.parse(localData);
+        setUserName(userData.name || "");
+        setUserEmail(userData.email || "");
+        return;
+      }
+    } catch (e) {
+      console.error('Error reading from localStorage:', e);
+    }
+    
+    // 3. Try sessionStorage
+    try {
+      const sessionData = sessionStorage.getItem('user');
+      if (sessionData) {
+        const userData = JSON.parse(sessionData);
+        setUserName(userData.name || "");
+        setUserEmail(userData.email || "");
+        return;
+      }
+    } catch (e) {
+      console.error('Error reading from sessionStorage:', e);
+    }
+    
+    // 4. Try cookies
+    const cookieData = getUserDataFromCookie();
+    if (cookieData) {
+      setUserName(cookieData.name || "");
+      setUserEmail(cookieData.email || "");
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    loadUserData();
+
+    // Also set up an auth state listener to update email when auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserName(user.displayName || "");
+        setUserEmail(user.email || "");
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Load data whenever dropdown is opened
+  useEffect(() => {
+    if (isDropdownOpen) {
+      loadUserData();
+    }
+  }, [isDropdownOpen]);
 
   const handleSignOut = () => {
     // Don't clear user data from localStorage
@@ -45,6 +131,28 @@ export default function TrackingChoice() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      <div className="flex justify-end mb-4">
+        <DropdownMenu onOpenChange={setIsDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <div className="flex items-center gap-2 bg-lavender/10 p-2 rounded-full px-4 cursor-pointer hover:bg-lavender/20 transition-colors">
+              <User className="h-5 w-5 text-lavender" />
+              <span className="font-medium text-lavender">{userName || "User"}</span>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="p-2">
+              <p className="text-sm font-medium">{userName}</p>
+              <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut} className="text-red-500 cursor-pointer">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       <div className="mb-6">
         <h1 className="text-3xl font-heading font-bold text-lavender">
           {userName ? `Welcome, ${userName}!` : 'Choose Your Tracking Journey'}
@@ -165,17 +273,6 @@ export default function TrackingChoice() {
             </CardFooter>
           </Card>
         </motion.div>
-      </div>
-
-      <div className="mt-12 text-center">
-        <Button 
-          variant="destructive"
-          onClick={handleSignOut}
-          className="flex items-center gap-2 mx-auto"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Button>
       </div>
     </div>
   );

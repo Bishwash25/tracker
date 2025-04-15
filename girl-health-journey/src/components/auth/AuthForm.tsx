@@ -1,20 +1,59 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "firebase/auth";
 
 export default function AuthForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Enable Firebase persistence when component mounts
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        console.log("Firebase persistence enabled");
+      })
+      .catch((error) => {
+        console.error("Error setting persistence:", error);
+      });
+  }, []);
+
+  const saveUserDataToAllStorages = (userData) => {
+    // Save to localStorage
+    localStorage.setItem('user', JSON.stringify(userData));
+    
+    try {
+      // Also save to sessionStorage as backup
+      sessionStorage.setItem('user', JSON.stringify(userData));
+      
+      // Set a cookie that works across same-domain origins (different ports)
+      document.cookie = `userData=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=2592000; SameSite=Lax`;
+    } catch (error) {
+      console.error("Error saving user data to multiple storages:", error);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      
+      // Check if the email domain is .com
+      if (!user.email || !user.email.endsWith('.com')) {
+        // Sign out the user as we don't allow non-.com domains
+        await signOut(auth);
+        
+        toast({
+          title: "Registration failed",
+          description: "Only .com domain emails are allowed to register.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify({
@@ -49,6 +88,9 @@ export default function AuthForm() {
     try {
       await signOut(auth);
       localStorage.removeItem('user');
+      sessionStorage.removeItem('user');
+      document.cookie = "userData=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      
       toast({
         title: "Signed out successfully",
         description: "Come back soon!",
@@ -107,6 +149,39 @@ export default function AuthForm() {
           Continue with Google
         </Button>
       </motion.div>
+      
+      {/* Footer with copyright and Instagram logo */}
+      <footer className="mt-24 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-purple-600">
+            &copy; {new Date().getFullYear()} Her Health. All rights reserved.
+          </p>
+          <a 
+            href="https://instagram.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-purple-600 hover:text-purple-800 transition-colors"
+            aria-label="Instagram"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="20" 
+              height="20" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="h-5 w-5"
+            >
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
