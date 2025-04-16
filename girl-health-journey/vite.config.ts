@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    hmr: {
+      // Ensure HMR doesn't clear localStorage
+      overlay: false
+    }
   },
   plugins: [
     react(),

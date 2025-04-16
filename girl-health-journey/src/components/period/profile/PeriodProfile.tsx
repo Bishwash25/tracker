@@ -108,15 +108,11 @@ export default function PeriodProfile() {
   };
 
   const handleReset = () => {
-    // Clear period tracking data from localStorage
-    localStorage.removeItem("periodStartDate");
-    localStorage.removeItem("periodEndDate");
-    localStorage.removeItem("cycleLength");
-    localStorage.removeItem("periodLength");
+    // No longer clearing localStorage data
     
     toast({
-      title: "Data reset",
-      description: "Your period tracking data has been reset"
+      title: "Navigation to period start",
+      description: "Redirecting to period start page"
     });
     
     // Navigate to the period start page
@@ -136,7 +132,7 @@ export default function PeriodProfile() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Reset your period tracking data to start over with a new cycle.
+            Start over your period tracking with a new cycle.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

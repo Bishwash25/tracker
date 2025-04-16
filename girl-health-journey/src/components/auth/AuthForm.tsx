@@ -1,17 +1,19 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged } from "firebase/auth";
 
 export default function AuthForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Enable Firebase persistence when component mounts
+  // Check for existing user data when component mounts
   useEffect(() => {
+    // First set up auth persistence
     setPersistence(auth, browserLocalPersistence)
       .then(() => {
         console.log("Firebase persistence enabled");
@@ -19,7 +21,37 @@ export default function AuthForm() {
       .catch((error) => {
         console.error("Error setting persistence:", error);
       });
-  }, []);
+    
+    // Then check if user is already authenticated
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is already signed in
+        console.log("User already signed in:", user.email);
+        
+        // Ensure user data exists in localStorage
+        const userData = {
+          name: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL
+        };
+        
+        // Save to multiple storage methods to ensure persistence
+        saveUserDataToAllStorages(userData);
+        
+        // Navigate to the appropriate screen
+        const hasAcceptedTerms = localStorage.getItem('termsAccepted') === 'true';
+        if (hasAcceptedTerms) {
+          navigate("/tracking-choice");
+        } else {
+          navigate("/terms");
+        }
+      }
+      
+      setIsCheckingAuth(false);
+    });
+    
+    return () => unsubscribe();
+  }, [navigate]);
 
   const saveUserDataToAllStorages = (userData) => {
     // Save to localStorage
@@ -31,6 +63,9 @@ export default function AuthForm() {
       
       // Set a cookie that works across same-domain origins (different ports)
       document.cookie = `userData=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=2592000; SameSite=Lax`;
+      
+      // Set a flag to indicate this device has been authenticated
+      localStorage.setItem('device_authenticated', 'true');
     } catch (error) {
       console.error("Error saving user data to multiple storages:", error);
     }
@@ -39,6 +74,11 @@ export default function AuthForm() {
   const handleGoogleSignIn = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        // Force account selection even if one account is available
+        prompt: 'select_account'
+      });
+      
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -55,12 +95,13 @@ export default function AuthForm() {
         return;
       }
       
-      // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify({
+      // Store user data in all available storages for redundancy
+      const userData = {
         name: user.displayName,
         email: user.email,
         photoURL: user.photoURL
-      }));
+      };
+      saveUserDataToAllStorages(userData);
       
       toast({
         title: "Login successful",
@@ -87,9 +128,11 @@ export default function AuthForm() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      // Remove only authentication data but keep tracking data
       localStorage.removeItem('user');
       sessionStorage.removeItem('user');
       document.cookie = "userData=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      localStorage.removeItem('device_authenticated');
       
       toast({
         title: "Signed out successfully",
@@ -104,6 +147,15 @@ export default function AuthForm() {
       });
     }
   };
+
+  // Don't render the sign-in UI if we're still checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <div className="animate-pulse text-purple-600">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto p-6 space-y-6">

@@ -154,14 +154,11 @@ export default function ProfileSettings() {
   };
 
   const handleReset = () => {
-    // Clear pregnancy tracking data from localStorage
-    localStorage.removeItem("lastPeriodDate");
-    localStorage.removeItem("dueDate");
-    localStorage.removeItem("pregnancyStartDate");
+    // No longer clearing pregnancy tracking data from localStorage
     
     toast({
-      title: "Data reset",
-      description: "Your pregnancy tracking data has been reset"
+      title: "Navigation to pregnancy start",
+      description: "Redirecting to pregnancy start page"
     });
     
     // Navigate to the pregnancy start page
@@ -233,7 +230,7 @@ export default function ProfileSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Reset your pregnancy tracking data to start over with a new pregnancy.
+            Start over with a new pregnancy tracking session.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

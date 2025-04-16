@@ -463,7 +463,7 @@ export default function PeriodTracking() {
                 ) : (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center border-b pb-2">
-                      <span className="text-sm">Last Period Started:</span>
+                      <span className="text-sm">Period Started:</span>
                       <span className="font-medium">
                         {periodStartDate 
                           ? format(periodStartDate, "MMMM d, yyyy")

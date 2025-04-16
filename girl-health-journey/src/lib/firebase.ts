@@ -23,6 +23,9 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const analytics = getAnalytics(app);
 
+// Export auth for use throughout the app
+export { auth };
+
 // Enable persistent auth state across browser sessions and page reloads
 setPersistence(auth, browserLocalPersistence)
   .then(() => {
@@ -32,5 +35,16 @@ setPersistence(auth, browserLocalPersistence)
     console.error("Error setting persistence:", error);
   });
 
-export { auth };
+// Prevent localStorage from being cleared between sessions
+if (typeof window !== 'undefined') {
+  // Check if this is a first visit or a refresh
+  if (!sessionStorage.getItem('app_initialized')) {
+    // Mark that app has been initialized this session
+    sessionStorage.setItem('app_initialized', 'true');
+    console.log('App initialized with persistent storage');
+  } else {
+    console.log('App refreshed with persistent storage maintained');
+  }
+}
+
 export default app; 

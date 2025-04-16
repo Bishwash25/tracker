@@ -285,7 +285,7 @@ export default function PeriodDashboard() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Last Period:</span>
+                  <span className="text-sm"> Period Started:</span>
                   <span className="font-medium">
                     {periodStartDate ? format(periodStartDate, "MMMM d, yyyy") : "Not set"}
                   </span>
