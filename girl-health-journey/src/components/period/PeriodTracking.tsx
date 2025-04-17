@@ -21,6 +21,8 @@ import {
   ChartContainer,
 } from "@/components/ui/chart";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function PeriodTracking() {
   const [periodStartDate, setPeriodStartDate] = useState<Date | null>(null);
@@ -34,6 +36,7 @@ export default function PeriodTracking() {
   const [userName, setUserName] = useState("");
   const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Load user data from localStorage
   useEffect(() => {
@@ -41,12 +44,30 @@ export default function PeriodTracking() {
     const userData = localStorage.getItem('user');
     if (userData) {
       try {
-        const { name } = JSON.parse(userData);
-        setUserName(name);
+        const parsedData = JSON.parse(userData);
+        setUserName(parsedData.name || "");
+        
+        // Try to get user ID from different potential sources
+        if (parsedData.uid) {
+          setUserId(parsedData.uid);
+          console.log("Found user ID from localStorage:", parsedData.uid);
+        }
       } catch (error) {
         console.error('Error parsing user data:', error);
       }
     }
+
+    // Also check Firebase Auth for current user
+    const currentUser = auth.currentUser;
+    if (currentUser?.uid) {
+      setUserId(currentUser.uid);
+      console.log("Found user ID from Firebase Auth:", currentUser.uid);
+    } else {
+      console.log("No current Firebase user found");
+    }
+
+    // Log if we have a user ID set
+    console.log("User ID set:", userId);
 
     const storedPeriodStartDate = localStorage.getItem("periodStartDate");
     const storedPeriodEndDate = localStorage.getItem("periodEndDate");
@@ -104,6 +125,11 @@ export default function PeriodTracking() {
     return () => clearInterval(timer);
   }, []);
 
+  // Log whenever userId changes
+  useEffect(() => {
+    console.log("User ID changed to:", userId);
+  }, [userId]);
+
   // Calculate countdown and generate chart data
   useEffect(() => {
     if (!periodStartDate) return;
@@ -156,7 +182,68 @@ export default function PeriodTracking() {
     }
   }, [periodStartDate, periodEndDate, periodLength, cycleLength, currentTime]);
 
-  const handleSave = () => {
+  const savePeriodDataToFirestore = async () => {
+    // If userId not set, try to get it directly from auth
+    let currentUserId = userId;
+    if (!currentUserId) {
+      const currentUser = auth.currentUser;
+      if (currentUser?.uid) {
+        currentUserId = currentUser.uid;
+        setUserId(currentUserId);
+        console.log("Retrieved user ID directly in save function:", currentUserId);
+      } else {
+        console.error("Cannot save to Firestore: No user ID available");
+        return false;
+      }
+    }
+
+    try {
+      // First, save directly in the user document for easy access
+      const userRef = doc(db, "users", currentUserId);
+      console.log("Saving to user document:", currentUserId);
+      await setDoc(userRef, {
+        periodDetails: {
+          periodStartDate: periodStartDate ? periodStartDate.toISOString() : null,
+          periodEndDate: periodEndDate ? periodEndDate.toISOString() : null,
+          periodLength: periodLength,
+          cycleLength: cycleLength,
+          lastUpdated: new Date().toISOString()
+        }
+      }, { merge: true });
+      
+      // Continue with existing subcollection approach
+      const periodDataRef = doc(db, "users", currentUserId, "periodData", "current");
+      
+      await setDoc(periodDataRef, {
+        periodStartDate: periodStartDate ? periodStartDate.toISOString() : null,
+        periodEndDate: periodEndDate ? periodEndDate.toISOString() : null,
+        periodLength: periodLength,
+        cycleLength: cycleLength,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+
+      // Also save to period history subcollection
+      if (periodStartDate) {
+        const historyId = format(periodStartDate, "yyyy-MM-dd");
+        const historyRef = doc(db, "users", currentUserId, "periodHistory", historyId);
+        
+        await setDoc(historyRef, {
+          startDate: periodStartDate.toISOString(),
+          endDate: periodEndDate ? periodEndDate.toISOString() : null,
+          periodLength: periodLength,
+          cycleLength: cycleLength,
+          recordedAt: new Date().toISOString()
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error saving period data to Firestore:", error);
+      return false;
+    }
+  };
+
+  const handleSave = async () => {
     if (!periodStartDate || !periodEndDate) {
       toast.error("Please set both start and end dates");
       return;
@@ -166,7 +253,7 @@ export default function PeriodTracking() {
     const actualPeriodLength = differenceInDays(periodEndDate, periodStartDate) + 1;
     setPeriodLength(actualPeriodLength);
 
-    // Save to localStorage
+    // Save to localStorage (keep original functionality)
     localStorage.setItem("periodStartDate", periodStartDate.toISOString());
     localStorage.setItem("periodEndDate", periodEndDate.toISOString());
     localStorage.setItem("periodLength", actualPeriodLength.toString());
@@ -200,8 +287,16 @@ export default function PeriodTracking() {
       localStorage.setItem("periodHistory", JSON.stringify(periodHistory));
     }
 
+    // Save to Firebase
+    const firestoreSaveSuccess = await savePeriodDataToFirestore();
+
     setIsEditing(false);
-    toast.success("Period information saved successfully");
+    
+    if (firestoreSaveSuccess) {
+      toast.success("Period information saved successfully to cloud");
+    } else {
+      toast.success("Period information saved locally");
+    }
   };
 
   // Get current cycle phase

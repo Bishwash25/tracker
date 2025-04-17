@@ -9,19 +9,11 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { initializePersistentStorage } from "@/lib/storage-utils";
 import { initStorageWatcher, checkForDataLoss, restoreFromBackup } from "@/lib/storage-watcher";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 // Auth Components
 import TermsConditions from "./components/auth/TermsConditions";
 import TrackingChoice from "./components/tracking/TrackingChoice";
-
-// Pregnancy Tracking Components
-import PregnancyStart from "./components/pregnancy/PregnancyStart";
-import PregnancyLayout from "./components/layouts/PregnancyLayout";
-import PregnancyDashboard from "./components/pregnancy/PregnancyDashboard";
-import MomTools from "./components/pregnancy/MomTools";
-import ProfileSettings from "./components/pregnancy/ProfileSettings";
-import PregnancyLearn from "./components/pregnancy/PregnancyLearn";
-import PregnancyHistory from "./components/pregnancy/PregnancyHistory";
 
 // Period Tracking Components
 import PeriodStart from "./components/period/PeriodStart";
@@ -75,23 +67,32 @@ const App = () => {
             <Routes>
               {/* Authentication Routes */}
               <Route path="/" element={<Index />} />
-              <Route path="/terms" element={<TermsConditions />} />
-              <Route path="/tracking-choice" element={<TrackingChoice />} />
-
-              {/* Pregnancy Tracking Routes */}
-              <Route path="/pregnancy-start" element={<PregnancyStart />} />
-              <Route path="/pregnancy-dashboard" element={<PregnancyLayout />}>
-                <Route index element={<PregnancyDashboard />} />
-                <Route path="" element={<PregnancyDashboard />} />
-                <Route path="mom" element={<MomTools />} />
-                <Route path="profile" element={<ProfileSettings />} />
-                <Route path="learn" element={<PregnancyLearn />} />
-                <Route path="history" element={<PregnancyHistory />} />
-              </Route>
+              
+              {/* Protected Routes - All routes except the login page */}
+              <Route path="/terms" element={
+                <ProtectedRoute>
+                  <TermsConditions />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/tracking-choice" element={
+                <ProtectedRoute>
+                  <TrackingChoice />
+                </ProtectedRoute>
+              } />
 
               {/* Period Tracking Routes */}
-              <Route path="/period-start" element={<PeriodStart />} />
-              <Route path="/period-dashboard" element={<PeriodSidebarLayout />}>
+              <Route path="/period-start" element={
+                <ProtectedRoute>
+                  <PeriodStart />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/period-dashboard" element={
+                <ProtectedRoute>
+                  <PeriodSidebarLayout />
+                </ProtectedRoute>
+              }>
                 <Route index element={<PeriodDashboard />} />
                 <Route path="" element={<PeriodDashboard />} />
                 <Route path="tracking" element={<PeriodTracking />} />

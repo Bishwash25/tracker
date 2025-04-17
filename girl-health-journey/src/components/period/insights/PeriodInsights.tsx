@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import FertilityChart from "./FertilityChart";
 import MoodTracker from "./MoodTracker";
 import PeriodFlowTracker from "./PeriodFlowTracker";
-import { Calendar, Droplets, Smile, ChevronDown } from "lucide-react";
+import PeriodWeightTracker from "./PeriodWeightTracker";
+import { Calendar, Droplets, Smile, ChevronDown, Scale } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { 
@@ -16,12 +17,13 @@ import {
 
 export default function PeriodInsights() {
   const isMobile = useIsMobile();
-  const [activeSection, setActiveSection] = useState<'cycle' | 'mood' | 'flow'>('cycle');
+  const [activeSection, setActiveSection] = useState<'cycle' | 'mood' | 'flow' | 'weight'>('cycle');
   
   const sidebarItems = [
     { id: 'cycle', label: 'Cycle Phases', icon: Calendar },
     { id: 'mood', label: 'Moods', icon: Smile },
     { id: 'flow', label: 'Period Flow', icon: Droplets },
+    { id: 'weight', label: 'Weight Tracker', icon: Scale },
   ] as const;
   
   return (
@@ -30,7 +32,7 @@ export default function PeriodInsights() {
       <div className="w-full max-w-xs">
         <Select
           value={activeSection}
-          onValueChange={(value) => setActiveSection(value as 'cycle' | 'mood' | 'flow')}
+          onValueChange={(value) => setActiveSection(value as 'cycle' | 'mood' | 'flow' | 'weight')}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select option" />
@@ -55,6 +57,7 @@ export default function PeriodInsights() {
         {activeSection === 'cycle' && <FertilityChart />}
         {activeSection === 'mood' && <MoodTracker />}
         {activeSection === 'flow' && <PeriodFlowTracker />}
+        {activeSection === 'weight' && <PeriodWeightTracker />}
       </div>
     </div>
   );

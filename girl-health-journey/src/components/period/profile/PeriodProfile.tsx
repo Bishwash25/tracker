@@ -91,11 +91,11 @@ export default function PeriodProfile() {
         description: "You are being logged out..."
       });
       
-      // Only sign out from Firebase without clearing localStorage data
+      // Sign out from Firebase without clearing localStorage data
       await signOut(auth);
       
-      // Navigate to the tracking choice page
-      navigate("/tracking-choice");
+      // Navigate to the login page (root path)
+      navigate("/");
       
     } catch (error) {
       console.error("Error signing out:", error);

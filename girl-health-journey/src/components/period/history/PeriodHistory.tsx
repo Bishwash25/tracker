@@ -46,6 +46,8 @@ interface FlowRecord {
   painLevel: number;
   notes?: string;
   periodDay: string;
+  bodyTemperature?: string;
+  temperatureUnit?: string;
 }
 
 interface MoodRecord {
@@ -168,7 +170,7 @@ export default function PeriodHistory() {
     let allWeightRecords: WeightRecord[] = [];
     
     // Load period weight records
-    const storedPeriodWeightRecords = localStorage.getItem("periodWeightTracking");
+    const storedPeriodWeightRecords = localStorage.getItem("periodWeightRecords");
     if (storedPeriodWeightRecords) {
       try {
         const records = JSON.parse(storedPeriodWeightRecords) as WeightRecord[];
@@ -249,11 +251,21 @@ export default function PeriodHistory() {
   };
 
   const handleDeleteWeightRecord = (id: string) => {
+    const recordToDelete = weightRecords.find(record => record.id === id);
     const updatedRecords = weightRecords.filter(record => record.id !== id);
     setWeightRecords(updatedRecords);
     
-    // Update localStorage
-    localStorage.setItem("periodWeightTracking", JSON.stringify(updatedRecords));
+    // Update localStorage based on the source of the record
+    if (recordToDelete?.source === 'pregnancy') {
+      // Update pregnancy weight records
+      const pregnancyRecords = weightRecords.filter(r => r.source === 'pregnancy' && r.id !== id);
+      localStorage.setItem("pregnancyWeightTracking", JSON.stringify(pregnancyRecords));
+    } else {
+      // Update period weight records
+      const periodRecords = weightRecords.filter(r => r.source !== 'pregnancy' && r.id !== id);
+      localStorage.setItem("periodWeightRecords", JSON.stringify(periodRecords));
+    }
+    
     toast.success("Weight record deleted successfully");
   };
 
@@ -434,6 +446,12 @@ export default function PeriodHistory() {
           doc.text(`Pads/Tampons Changed: ${record.padsChanged}`, margin, yPos);
           yPos += 7;
 
+          // Add body temperature if it exists
+          if (record.bodyTemperature) {
+            doc.text(`Body Temperature: ${record.bodyTemperature}${record.temperatureUnit || '°C'}`, margin, yPos);
+            yPos += 7;
+          }
+
           if (record.notes) {
             doc.text('Notes:', margin, yPos);
             yPos += 5;
@@ -541,6 +559,57 @@ export default function PeriodHistory() {
         });
       }
 
+      // Add Weight Records
+      if (weightRecords.length > 0) {
+        if (yPos > 240) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        // Add a separator line
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 10;
+
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Weight Records', margin, yPos);
+        yPos += 10;
+
+        weightRecords.forEach((record) => {
+          if (yPos > 260) {
+            doc.addPage();
+            yPos = 20;
+          }
+
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Date: ${format(new Date(record.date), 'yyyy-MM-dd')}`, margin, yPos);
+          yPos += 7;
+
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Weight: ${record.weight} ${record.weightUnit || 'kg'}`, margin, yPos);
+          yPos += 7;
+
+          if (record.notes) {
+            doc.text('Notes:', margin, yPos);
+            yPos += 5;
+            
+            const noteLines = doc.splitTextToSize(record.notes, pageWidth - (margin * 2));
+            for (let i = 0; i < noteLines.length; i++) {
+              if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+              }
+              doc.text(noteLines[i], margin, yPos);
+              yPos += 5;
+            }
+          }
+          
+          yPos += 10;
+        });
+      }
+
       // Save the PDF
       const fileName = `your-record-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       doc.save(fileName);
@@ -622,6 +691,12 @@ export default function PeriodHistory() {
               <div className="flex items-center">
                 <Droplet className="h-4 w-4 mr-2" />
                 <span>Flow Records</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="weight">
+              <div className="flex items-center">
+                <Scale className="h-4 w-4 mr-2" />
+                <span>Weight Records</span>
               </div>
             </SelectItem>
           </SelectContent>
@@ -949,6 +1024,111 @@ export default function PeriodHistory() {
                   ) : (
                     <div className="text-center text-muted-foreground py-8">
                       No flow records available. Add flow records in the Period Insights page.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          
+          {activeTab === "weight" && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Weight History</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={toggleSortDirection}
+                    className="gap-1"
+                  >
+                    {sortDirection === 'desc' ? (
+                      <>Newest First <ArrowDown className="h-3 w-3" /></>
+                    ) : (
+                      <>Oldest First <ArrowUp className="h-3 w-3" /></>
+                    )}
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-6">
+                    Your weight tracking history with changes over time.
+                  </p>
+                  
+                  {weightRecords.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Weight</TableHead>
+                          <TableHead>Change</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead className="w-[80px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {weightRecordsWithChanges.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell>{format(new Date(record.date), "MMM d, yyyy")}</TableCell>
+                            <TableCell>
+                              {record.weight} {record.weightUnit || "kg"}
+                            </TableCell>
+                            <TableCell>
+                              {record.change !== 0 ? (
+                                <div className="flex items-center gap-1">
+                                  {record.change > 0 ? (
+                                    <>
+                                      <ArrowUp className="h-3 w-3 text-red-500" />
+                                      <span className="text-red-500">+{record.change.toFixed(1)}</span>
+                                    </>
+                                  ) : record.change < 0 ? (
+                                    <>
+                                      <ArrowDown className="h-3 w-3 text-green-500" />
+                                      <span className="text-green-500">{record.change.toFixed(1)}</span>
+                                    </>
+                                  ) : (
+                                    <Minus className="h-3 w-3" />
+                                  )}
+                                </div>
+                              ) : (
+                                <Minus className="h-3 w-3" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {record.notes || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete weight record?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete this weight record from your history.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeleteWeightRecord(record.id)}
+                                      className="bg-red-500 hover:bg-red-600"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      No weight records available. Add weight records in the Period Insights page.
                     </div>
                   )}
                 </CardContent>

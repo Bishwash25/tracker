@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -39,6 +39,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, collection, deleteDoc } from "firebase/firestore";
 
 // Define mood parameters
 const moodParameters = [
@@ -75,7 +77,6 @@ const formSchema = z.object({
   ...dynamicSchemaFields,
   // Additional field for "Other" mood
   other_mood_description: z.string().optional(),
-  other_mood_intensity: z.number().min(1).max(100).default(1),
   notes: z.string().optional(),
 });
 
@@ -86,7 +87,6 @@ const createDefaultValues = () => {
   const defaults = {
     date: new Date(),
     other_mood_description: "",
-    other_mood_intensity: 1,
     notes: "",
   };
   
@@ -104,13 +104,163 @@ export default function MoodTracker() {
     const saved = localStorage.getItem("moodTrackingComprehensive");
     return saved ? JSON.parse(saved) : [];
   });
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  // Load user ID on component mount
+  useEffect(() => {
+    console.log("MoodTracker component mounted, checking for user ID");
+    
+    // Try to get user ID from Firebase Auth
+    const currentUser = auth.currentUser;
+    if (currentUser?.uid) {
+      console.log("Found user ID from Firebase Auth:", currentUser.uid);
+      setUserId(currentUser.uid);
+      return;
+    } else {
+      console.log("No current Firebase user found");
+    }
+    
+    // Try to get user ID from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const parsedData = JSON.parse(userData);
+        if (parsedData.uid) {
+          console.log("Found user ID from localStorage:", parsedData.uid);
+          setUserId(parsedData.uid);
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    } else {
+      console.log("No user data found in localStorage");
+    }
+  }, []);
+  
+  // Log whenever userId changes
+  useEffect(() => {
+    console.log("User ID changed to:", userId);
+  }, [userId]);
+  
+  // Monitor Firebase auth state
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user?.uid) {
+        console.log("Auth state changed - user ID:", user.uid);
+        setUserId(user.uid);
+      } else {
+        console.log("Auth state changed - no user");
+      }
+    });
+    
+    // Clean up the listener when component unmounts
+    return () => unsubscribe();
+  }, []);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: createDefaultValues(),
   });
 
-  function onSubmit(data: FormValues) {
+  // Save mood record to Firebase
+  const saveMoodToFirestore = async (moodData: FormValues & { id: string }) => {
+    if (!userId) {
+      // Try one more time to get the user ID directly from auth
+      const currentUser = auth.currentUser;
+      if (currentUser?.uid) {
+        setUserId(currentUser.uid);
+        console.log("Retrieved user ID directly in save function:", currentUser.uid);
+      } else {
+        console.error("Cannot save to Firestore: No user ID available");
+        return false;
+      }
+    }
+
+    const effectiveUserId = userId || auth.currentUser?.uid;
+    if (!effectiveUserId) {
+      console.error("Still no user ID available after retry");
+      return false;
+    }
+
+    try {
+      console.log("Saving mood data to Firestore for user:", effectiveUserId);
+      
+      // Convert the date to ISO string for Firestore
+      const firestoreData = {
+        ...moodData,
+        date: moodData.date instanceof Date ? moodData.date.toISOString() : moodData.date,
+        createdAt: new Date().toISOString()
+      };
+      
+      // First, save directly in the user document
+      const userRef = doc(db, "users", effectiveUserId);
+      await setDoc(userRef, {
+        moods: {
+          [moodData.id]: firestoreData
+        },
+        moodTracking: {
+          lastMoodDate: firestoreData.date,
+          lastRecordId: moodData.id,
+          updatedAt: new Date().toISOString()
+        }
+      }, { merge: true });
+      
+      // Also save in the moods subcollection
+      const moodRef = doc(db, "users", effectiveUserId, "moods", moodData.id);
+      await setDoc(moodRef, firestoreData);
+      
+      console.log("Successfully saved mood data to Firestore");
+      return true;
+    } catch (error) {
+      console.error("Error saving mood data to Firestore:", error);
+      return false;
+    }
+  };
+
+  // Delete mood record from Firebase
+  const deleteMoodFromFirestore = async (moodId: string) => {
+    if (!userId) {
+      const currentUser = auth.currentUser;
+      if (currentUser?.uid) {
+        setUserId(currentUser.uid);
+      } else {
+        console.error("Cannot delete from Firestore: No user ID available");
+        return false;
+      }
+    }
+
+    const effectiveUserId = userId || auth.currentUser?.uid;
+    if (!effectiveUserId) {
+      console.error("Still no user ID available after retry");
+      return false;
+    }
+
+    try {
+      console.log("Deleting mood data from Firestore for user:", effectiveUserId);
+      
+      // First, update the user document to remove this mood
+      const userRef = doc(db, "users", effectiveUserId);
+      
+      // We can't directly delete a nested field, so we need to update with a special value
+      await setDoc(userRef, {
+        moods: {
+          [moodId]: null  // Firebase will interpret this as a delete operation for this field
+        }
+      }, { merge: true });
+      
+      // Also delete from the moods subcollection
+      const moodRef = doc(db, "users", effectiveUserId, "moods", moodId);
+      await deleteDoc(moodRef);
+      
+      console.log("Successfully deleted mood data from Firestore");
+      return true;
+    } catch (error) {
+      console.error("Error deleting mood data from Firestore:", error);
+      return false;
+    }
+  };
+
+  async function onSubmit(data: FormValues) {
     const newRecord = {
       ...data,
       id: Date.now().toString(),
@@ -118,18 +268,32 @@ export default function MoodTracker() {
     
     const updatedRecords = [newRecord, ...savedRecords];
     setSavedRecords(updatedRecords);
+    
+    // Save to localStorage (keep original functionality)
     localStorage.setItem("moodTrackingComprehensive", JSON.stringify(updatedRecords));
     
-    toast.success("Mood record saved successfully");
-    setActiveView('records'); // Switch to records view after saving
+    // Save to Firebase
+    const firebaseSaveResult = await saveMoodToFirestore(newRecord);
     
+    if (firebaseSaveResult) {
+      toast.success("Mood record saved successfully to cloud");
+    } else {
+      toast.success("Mood record saved locally");
+    }
+    
+    setActiveView('records'); // Switch to records view after saving
     form.reset(createDefaultValues());
   }
 
-  const deleteRecord = (id: string) => {
+  const deleteRecord = async (id: string) => {
     const updatedRecords = savedRecords.filter(record => record.id !== id);
     setSavedRecords(updatedRecords);
+    
+    // Update localStorage (keep original functionality)
     localStorage.setItem("moodTrackingComprehensive", JSON.stringify(updatedRecords));
+    
+    // Delete from Firebase
+    await deleteMoodFromFirestore(id);
     
     toast.success("Mood record deleted");
   };
@@ -244,32 +408,6 @@ export default function MoodTracker() {
                             </FormItem>
                           )}
                         />
-                        
-                        <FormField
-                          control={form.control}
-                          name="other_mood_intensity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between">
-                                <FormLabel className="text-sm">Intensity</FormLabel>
-                                <span className="text-sm font-semibold">
-                                  {field.value}
-                                </span>
-                              </div>
-                              <FormControl>
-                                <Slider
-                                  min={1}
-                                  max={100}
-                                  step={1}
-                                  value={[field.value]}
-                                  onValueChange={(vals) => field.onChange(vals[0])}
-                                  disabled={!form.watch("other_mood_description")}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
                       </div>
                     </div>
                   </div>
@@ -323,7 +461,9 @@ export default function MoodTracker() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
                           <CardTitle className="text-base">
-                            {format(new Date(record.date), "MMMM d, yyyy")}
+                            {typeof record.date === 'string' 
+                              ? format(new Date(record.date), "MMMM d, yyyy")
+                              : format(record.date, "MMMM d, yyyy")}
                           </CardTitle>
                         </div>
                         <AlertDialog>
@@ -357,7 +497,8 @@ export default function MoodTracker() {
                         <div className="space-y-3">
                           {moodParameters.map((mood, index) => {
                             const key = mood.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                            const intensity = record[key as keyof typeof record] as number;
+                            const intensityValue = record[key as keyof typeof record];
+                            const intensity = typeof intensityValue === 'number' ? intensityValue : 1;
                             
                             return (
                               <div key={key} className="grid grid-cols-2 gap-2">
@@ -381,11 +522,7 @@ export default function MoodTracker() {
                                 16. Other: {record.other_mood_description}
                               </div>
                               <div className="flex items-center gap-2">
-                                <div 
-                                  className="h-2 bg-lavender/30 rounded-full" 
-                                  style={{ width: `${record.other_mood_intensity}%` }}
-                                />
-                                <span className="text-xs">{record.other_mood_intensity}</span>
+                                {/* Removed intensity indicator for "Other" */}
                               </div>
                             </div>
                           )}

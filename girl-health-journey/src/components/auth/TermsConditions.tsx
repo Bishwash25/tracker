@@ -12,7 +12,7 @@ export default function TermsConditions() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleContinue = () => {
+  const handleAccept = () => {
     if (!accepted || !isOver16) {
       toast({
         title: "Required Action",
@@ -21,11 +21,17 @@ export default function TermsConditions() {
       });
       return;
     }
-
-    // Set terms accepted flag in localStorage
-    localStorage.setItem('termsAccepted', 'true');
     
-    navigate("/tracking-choice");
+    // Record that terms have been accepted in localStorage
+    localStorage.setItem("termsAccepted", "true");
+    
+    toast({
+      title: "Terms Accepted",
+      description: "Thank you for accepting the terms and conditions."
+    });
+    
+    // Navigate to period start page directly instead of tracking choice
+    navigate("/period-start");
   };
 
   return (
@@ -122,7 +128,7 @@ export default function TermsConditions() {
         </div>
 
         <Button 
-          onClick={handleContinue} 
+          onClick={handleAccept} 
           className="w-full mt-6"
           disabled={!accepted || !isOver16}
         >

@@ -1,4 +1,3 @@
-
 import React from "react";
 import AuthForm from "@/components/auth/AuthForm";
 import { motion } from "framer-motion";
@@ -18,7 +17,7 @@ const Index = () => {
             Her Health
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-6">
-            Your personal companion for period and pregnancy tracking
+            Your personal companion for period tracking
           </p>
           <ul className="space-y-3 mb-8 text-left">
             <li className="flex items-start">
@@ -27,7 +26,7 @@ const Index = () => {
             </li>
             <li className="flex items-start">
               <span className="text-lavender mr-2 text-xl">•</span>
-              <span>Monitor pregnancy progress week by week</span>
+              <span>Monitor mood and symptom patterns throughout your cycle</span>
             </li>
             <li className="flex items-start">
               <span className="text-lavender mr-2 text-xl">•</span>
