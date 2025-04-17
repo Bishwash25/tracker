@@ -3,17 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/lib/firebase"; // 🆕 added db
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+  onAuthStateChanged
+} from "firebase/auth";
+
+import { doc, setDoc } from "firebase/firestore"; // 🆕 for Firestore
 
 export default function AuthForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Check for existing user data when component mounts
   useEffect(() => {
-    // First set up auth persistence
     setPersistence(auth, browserLocalPersistence)
       .then(() => {
         console.log("Firebase persistence enabled");
@@ -21,72 +28,70 @@ export default function AuthForm() {
       .catch((error) => {
         console.error("Error setting persistence:", error);
       });
-    
-    // Then check if user is already authenticated
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is already signed in
         console.log("User already signed in:", user.email);
-        
-        // Ensure user data exists in localStorage
+
         const userData = {
           name: user.displayName,
           email: user.email,
           photoURL: user.photoURL
         };
-        
-        // Save to multiple storage methods to ensure persistence
+
         saveUserDataToAllStorages(userData);
-        
-        // Navigate to the appropriate screen
-        const hasAcceptedTerms = localStorage.getItem('termsAccepted') === 'true';
-        if (hasAcceptedTerms) {
-          navigate("/tracking-choice");
-        } else {
-          navigate("/terms");
-        }
+        await saveUserToFirestore(user); // 🆕 save to Firestore
+
+        const hasAcceptedTerms = localStorage.getItem("termsAccepted") === "true";
+        navigate(hasAcceptedTerms ? "/tracking-choice" : "/terms");
       }
-      
       setIsCheckingAuth(false);
     });
-    
+
     return () => unsubscribe();
   }, [navigate]);
 
   const saveUserDataToAllStorages = (userData) => {
-    // Save to localStorage
-    localStorage.setItem('user', JSON.stringify(userData));
-    
+    localStorage.setItem("user", JSON.stringify(userData));
     try {
-      // Also save to sessionStorage as backup
-      sessionStorage.setItem('user', JSON.stringify(userData));
-      
-      // Set a cookie that works across same-domain origins (different ports)
+      sessionStorage.setItem("user", JSON.stringify(userData));
       document.cookie = `userData=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=2592000; SameSite=Lax`;
-      
-      // Set a flag to indicate this device has been authenticated
-      localStorage.setItem('device_authenticated', 'true');
+      localStorage.setItem("device_authenticated", "true");
     } catch (error) {
       console.error("Error saving user data to multiple storages:", error);
+    }
+  };
+
+  // 🆕 Save to Firestore
+  const saveUserToFirestore = async (user) => {
+    if (!user?.uid) return;
+
+    const userRef = doc(db, "users", user.uid);
+
+    try {
+      await setDoc(userRef, {
+        name: user.displayName || "",
+        email: user.email || "",
+        photoURL: user.photoURL || "",
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+
+      console.log("User saved to Firestore");
+    } catch (error) {
+      console.error("Error saving user to Firestore:", error);
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({
-        // Force account selection even if one account is available
-        prompt: 'select_account'
-      });
-      
+      provider.setCustomParameters({ prompt: "select_account" });
+
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      
-      // Check if the email domain is .com
-      if (!user.email || !user.email.endsWith('.com')) {
-        // Sign out the user as we don't allow non-.com domains
+
+      if (!user.email || !user.email.endsWith(".com")) {
         await signOut(auth);
-        
         toast({
           title: "Registration failed",
           description: "Only .com domain emails are allowed to register.",
@@ -94,27 +99,23 @@ export default function AuthForm() {
         });
         return;
       }
-      
-      // Store user data in all available storages for redundancy
+
       const userData = {
         name: user.displayName,
         email: user.email,
         photoURL: user.photoURL
       };
+
       saveUserDataToAllStorages(userData);
-      
+      await saveUserToFirestore(user); // 🆕 save to Firestore
+
       toast({
         title: "Login successful",
         description: "Welcome to Her Health!",
       });
-      
-      // Check if user has already accepted terms
-      const hasAcceptedTerms = localStorage.getItem('termsAccepted') === 'true';
-      if (hasAcceptedTerms) {
-        navigate("/tracking-choice");
-      } else {
-        navigate("/terms");
-      }
+
+      const hasAcceptedTerms = localStorage.getItem("termsAccepted") === "true";
+      navigate(hasAcceptedTerms ? "/tracking-choice" : "/terms");
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({
@@ -128,12 +129,11 @@ export default function AuthForm() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      // Remove only authentication data but keep tracking data
-      localStorage.removeItem('user');
-      sessionStorage.removeItem('user');
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("user");
       document.cookie = "userData=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      localStorage.removeItem('device_authenticated');
-      
+      localStorage.removeItem("device_authenticated");
+
       toast({
         title: "Signed out successfully",
         description: "Come back soon!",
@@ -148,7 +148,6 @@ export default function AuthForm() {
     }
   };
 
-  // Don't render the sign-in UI if we're still checking authentication
   if (isCheckingAuth) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -201,30 +200,29 @@ export default function AuthForm() {
           Continue with Google
         </Button>
       </motion.div>
-      
-      {/* Footer with copyright and Instagram logo */}
+
       <footer className="mt-24 pt-6 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <p className="text-xs text-purple-600">
             &copy; {new Date().getFullYear()} Her Health. All rights reserved.
           </p>
-          <a 
-            href="https://instagram.com" 
-            target="_blank" 
+          <a
+            href="https://instagram.com"
+            target="_blank"
             rel="noopener noreferrer"
             className="text-purple-600 hover:text-purple-800 transition-colors"
             aria-label="Instagram"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="20" 
-              height="20" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               className="h-5 w-5"
             >
               <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
