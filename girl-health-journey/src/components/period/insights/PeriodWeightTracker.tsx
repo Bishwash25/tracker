@@ -52,11 +52,11 @@ export default function PeriodWeightTracker() {
       // Try to get user ID from Firebase Auth
       const currentUser = auth.currentUser;
       if (currentUser?.uid) {
-        console.log("Found user ID from Firebase Auth:", currentUser.uid);
+        console.log("Found user ID :", currentUser.uid);
         setUserId(currentUser.uid);
         return;
       } else {
-        console.log("No current Firebase user found");
+        console.log("No current user found");
       }
       
       // Try to get user ID from localStorage
@@ -112,7 +112,7 @@ export default function PeriodWeightTracker() {
         setUserId(currentUserId);
         console.log("Retrieved user ID directly in save function:", currentUserId);
       } else {
-        console.error("Cannot save to Firestore: No user ID available");
+        console.error("Cannot save: No user ID available");
         return false;
       }
     }
@@ -140,10 +140,10 @@ export default function PeriodWeightTracker() {
       const weightRef = doc(collection(db, "users", currentUserId, "periodWeight"), weightData.id);
       await setDoc(weightRef, firestoreData);
       
-      console.log("Successfully saved weight data to Firestore");
+      console.log("Successfully saved weight data ");
       return true;
     } catch (error) {
-      console.error("Error saving weight data to Firestore:", error);
+      console.error("Error saving weight data:", error);
       return false;
     }
   };
@@ -155,7 +155,7 @@ export default function PeriodWeightTracker() {
       if (currentUser?.uid) {
         setUserId(currentUser.uid);
       } else {
-        console.error("Cannot delete from Firestore: No user ID available");
+        console.error("Cannot delete: No user ID available");
         return false;
       }
     }
@@ -167,7 +167,7 @@ export default function PeriodWeightTracker() {
     }
 
     try {
-      console.log("Deleting weight data from Firestore for user:", effectiveUserId);
+      console.log("Deleting weight data for user:", effectiveUserId);
       
       // First, update the user document to remove this weight record
       const userRef = doc(db, "users", effectiveUserId);
@@ -183,10 +183,10 @@ export default function PeriodWeightTracker() {
       const weightRef = doc(db, "users", effectiveUserId, "periodWeight", recordId);
       await deleteDoc(weightRef);
       
-      console.log("Successfully deleted weight data from Firestore");
+      console.log("Successfully deleted weight data");
       return true;
     } catch (error) {
-      console.error("Error deleting weight data from Firestore:", error);
+      console.error("Error deleting weight data:", error);
       return false;
     }
   };
@@ -230,7 +230,7 @@ export default function PeriodWeightTracker() {
       } else {
         toast({
           title: "Weight record saved locally",
-          description: "Your weight record has been saved locally only.",
+          description: "Your weight record has been saved.",
         });
       }
       

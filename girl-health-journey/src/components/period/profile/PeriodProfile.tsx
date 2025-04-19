@@ -111,7 +111,7 @@ export default function PeriodProfile() {
     // No longer clearing localStorage data
     
     toast({
-      title: "Navigation to period start",
+      title: "Reset your period",
       description: "Redirecting to period start page"
     });
     

@@ -109,11 +109,11 @@ export default function PeriodFlowTracker() {
       // Try to get user ID from Firebase Auth
       const currentUser = auth.currentUser;
       if (currentUser?.uid) {
-        console.log("Found user ID from Firebase Auth:", currentUser.uid);
+        console.log("Found user ID :", currentUser.uid);
         setUserId(currentUser.uid);
         return;
       } else {
-        console.log("No current Firebase user found");
+        console.log("No current user found");
       }
       
       // Try to get user ID from localStorage
@@ -198,7 +198,7 @@ export default function PeriodFlowTracker() {
             localStorage.setItem("periodFlowTracking", JSON.stringify(safeSerializeRecords(mergedRecords)));
           }
         } catch (error) {
-          console.error("Error loading period flow records from Firestore:", error);
+          console.error("Error loading period flow records:", error);
         }
       } else {
         console.log("Auth state changed - no user");
@@ -236,7 +236,7 @@ export default function PeriodFlowTracker() {
           setUserId(currentUserId);
           console.log("Retrieved user ID directly in save function:", currentUserId);
         } else {
-          console.error("Cannot save to Firestore: No user ID available");
+          console.error("Cannot save: No user ID available");
           return false;
         }
       }
@@ -268,10 +268,10 @@ export default function PeriodFlowTracker() {
       const flowRef = doc(collection(db, "users", currentUserId, "periodFlow"), flowData.id);
       await setDoc(flowRef, firestoreData);
       
-      console.log("Successfully saved flow data to Firestore");
+      console.log("Successfully saved flow data ");
       return true;
     } catch (error) {
-      console.error("Error saving flow data to Firestore:", error);
+      console.error("Error saving flow data :", error);
       return false;
     }
   };
@@ -285,7 +285,7 @@ export default function PeriodFlowTracker() {
         if (currentUser?.uid) {
           setUserId(currentUser.uid);
         } else {
-          console.error("Cannot delete from Firestore: No user ID available");
+          console.error("Cannot delete : No user ID available");
           return false;
         }
       }
@@ -296,7 +296,7 @@ export default function PeriodFlowTracker() {
         return false;
       }
 
-      console.log("Deleting flow data from Firestore for user:", effectiveUserId);
+      console.log("Deleting flow data for user:", effectiveUserId);
       
       // First, update the user document to remove this flow record
       const userRef = doc(db, "users", effectiveUserId);
@@ -312,10 +312,10 @@ export default function PeriodFlowTracker() {
       const flowRef = doc(db, "users", effectiveUserId, "periodFlow", recordId);
       await deleteDoc(flowRef);
       
-      console.log("Successfully deleted flow data from Firestore");
+      console.log("Successfully deleted flow data ");
       return true;
     } catch (error) {
-      console.error("Error deleting flow data from Firestore:", error);
+      console.error("Error deleting flow data :", error);
       return false;
     }
   };
@@ -365,8 +365,8 @@ export default function PeriodFlowTracker() {
         });
       } else {
         toast({
-          title: "Flow record saved locally",
-          description: "Your period flow information has been recorded locally only.",
+          title: "Flow record saved ",
+          description: "Your period flow information has been recorded.",
         });
       }
       

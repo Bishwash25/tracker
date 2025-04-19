@@ -192,7 +192,7 @@ export default function PeriodTracking() {
         setUserId(currentUserId);
         console.log("Retrieved user ID directly in save function:", currentUserId);
       } else {
-        console.error("Cannot save to Firestore: No user ID available");
+        console.error("Cannot save ");
         return false;
       }
     }
@@ -238,7 +238,7 @@ export default function PeriodTracking() {
       
       return true;
     } catch (error) {
-      console.error("Error saving period data to Firestore:", error);
+      console.error("Error saving period data ", error);
       return false;
     }
   };
@@ -293,9 +293,9 @@ export default function PeriodTracking() {
     setIsEditing(false);
     
     if (firestoreSaveSuccess) {
-      toast.success("Period information saved successfully to cloud");
+      toast.success("Period information saved successfully ");
     } else {
-      toast.success("Period information saved locally");
+      toast.success("Period information saved");
     }
   };
 

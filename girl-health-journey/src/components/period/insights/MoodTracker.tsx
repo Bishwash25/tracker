@@ -113,11 +113,11 @@ export default function MoodTracker() {
     // Try to get user ID from Firebase Auth
     const currentUser = auth.currentUser;
     if (currentUser?.uid) {
-      console.log("Found user ID from Firebase Auth:", currentUser.uid);
+      console.log("Found user ID :", currentUser.uid);
       setUserId(currentUser.uid);
       return;
     } else {
-      console.log("No current Firebase user found");
+      console.log("No current user found");
     }
     
     // Try to get user ID from localStorage
@@ -171,7 +171,7 @@ export default function MoodTracker() {
         setUserId(currentUser.uid);
         console.log("Retrieved user ID directly in save function:", currentUser.uid);
       } else {
-        console.error("Cannot save to Firestore: No user ID available");
+        console.error("Cannot save : No user ID available");
         return false;
       }
     }
@@ -183,7 +183,7 @@ export default function MoodTracker() {
     }
 
     try {
-      console.log("Saving mood data to Firestore for user:", effectiveUserId);
+      console.log("Saving mood data for user:", effectiveUserId);
       
       // Convert the date to ISO string for Firestore
       const firestoreData = {
@@ -209,7 +209,7 @@ export default function MoodTracker() {
       const moodRef = doc(db, "users", effectiveUserId, "moods", moodData.id);
       await setDoc(moodRef, firestoreData);
       
-      console.log("Successfully saved mood data to Firestore");
+      console.log("Successfully saved mood data ");
       return true;
     } catch (error) {
       console.error("Error saving mood data to Firestore:", error);
@@ -236,7 +236,7 @@ export default function MoodTracker() {
     }
 
     try {
-      console.log("Deleting mood data from Firestore for user:", effectiveUserId);
+      console.log("Deleting mood data :", effectiveUserId);
       
       // First, update the user document to remove this mood
       const userRef = doc(db, "users", effectiveUserId);
@@ -252,10 +252,10 @@ export default function MoodTracker() {
       const moodRef = doc(db, "users", effectiveUserId, "moods", moodId);
       await deleteDoc(moodRef);
       
-      console.log("Successfully deleted mood data from Firestore");
+      console.log("Successfully deleted mood data ");
       return true;
     } catch (error) {
-      console.error("Error deleting mood data from Firestore:", error);
+      console.error("Error deleting mood data :", error);
       return false;
     }
   };
@@ -278,7 +278,7 @@ export default function MoodTracker() {
     if (firebaseSaveResult) {
       toast.success("Mood record saved successfully to cloud");
     } else {
-      toast.success("Mood record saved locally");
+      toast.success("Mood record saved ");
     }
     
     setActiveView('records'); // Switch to records view after saving
