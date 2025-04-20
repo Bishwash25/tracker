@@ -24,7 +24,12 @@ export const getFromStorage = <T>(key: string, defaultValue: T): T => {
     const item = localStorage.getItem(key);
     if (item === null) return defaultValue;
     
-    return JSON.parse(item) as T;
+    try {
+      return JSON.parse(item) as T;
+    } catch (parseError) {
+      console.error(`Error parsing ${key} from localStorage:`, parseError);
+      return defaultValue;
+    }
   } catch (e) {
     console.error(`Error retrieving ${key} from localStorage:`, e);
     return defaultValue;
@@ -36,8 +41,15 @@ export const saveToStorage = <T>(key: string, value: T): boolean => {
   try {
     if (!isStorageAvailable('localStorage')) return false;
     
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
+    // Make sure we can actually stringify the value
+    const stringValue = JSON.stringify(value);
+    if (!stringValue) return false;
+    
+    localStorage.setItem(key, stringValue);
+    
+    // Verify data was saved correctly
+    const savedItem = localStorage.getItem(key);
+    return savedItem === stringValue;
   } catch (e) {
     console.error(`Error saving ${key} to localStorage:`, e);
     return false;
@@ -53,6 +65,29 @@ export const removeFromStorage = (key: string): boolean => {
     return true;
   } catch (e) {
     console.error(`Error removing ${key} from localStorage:`, e);
+    return false;
+  }
+};
+
+// Clear all app data but preserve user authentication
+export const clearAppDataButPreserveUser = (): boolean => {
+  try {
+    if (!isStorageAvailable('localStorage')) return false;
+    
+    // Save user data
+    const userData = getFromStorage('user', null);
+    
+    // Clear everything
+    localStorage.clear();
+    
+    // Restore user data if it existed
+    if (userData) {
+      saveToStorage('user', userData);
+    }
+    
+    return true;
+  } catch (e) {
+    console.error('Error clearing app data:', e);
     return false;
   }
 };
@@ -106,5 +141,6 @@ export const storage = {
   set: saveToStorage,
   remove: removeFromStorage,
   initialize: initializePersistentStorage,
-  isPersistent: checkStoragePersistence
+  isPersistent: checkStoragePersistence,
+  clearAppDataButPreserveUser
 }; 

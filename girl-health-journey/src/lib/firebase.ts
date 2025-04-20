@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
+import { saveToStorage, getFromStorage } from './storage-utils';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAt8O4oL7XvCGZ8wUy41JyeJIMa50hXo-s",
@@ -30,9 +31,32 @@ export { auth };
 setPersistence(auth, browserLocalPersistence)
   .then(() => {
     console.log("Firebase persistence initialized");
+    
+    // Set up listener for auth state changes to sync with localStorage
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Store basic user info for cross-device retrieval
+        const userData = {
+          uid: user.uid,
+          name: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
+          lastLogin: new Date().toISOString()
+        };
+        
+        saveToStorage("user", userData);
+        saveToStorage("device_authenticated", true);
+      }
+    });
   })
   .catch((error) => {
     console.error("Error setting persistence:", error);
+    
+    // Fallback to localStorage-only persistence if Firebase persistence fails
+    const storedUser = getFromStorage("user", null);
+    if (storedUser) {
+      console.log("Using stored user from localStorage as fallback");
+    }
   });
 
 // Prevent localStorage from being cleared between sessions
@@ -41,6 +65,13 @@ if (typeof window !== 'undefined') {
   if (!sessionStorage.getItem('app_initialized')) {
     // Mark that app has been initialized this session
     sessionStorage.setItem('app_initialized', 'true');
+    
+    // Check if we have user data from a previous session
+    const storedUser = getFromStorage("user", null);
+    if (storedUser) {
+      console.log('Previous user session found');
+    }
+    
     console.log('App initialized with persistent storage');
   } else {
     console.log('App refreshed with persistent storage maintained');

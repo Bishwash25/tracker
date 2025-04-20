@@ -27,6 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
+import { auth, db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, limit, doc, getDoc } from "firebase/firestore";
 
 interface PeriodHistoryRecord {
   startDate: string;
@@ -106,9 +109,61 @@ export default function PeriodHistory() {
     length: 0,
     cycleLength: 0
   });
+  const [userId, setUserId] = useState<string | null>(null);
+  const [dataFetched, setDataFetched] = useState(false);
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    // Try to get user ID from Firebase Auth
+    const currentUser = auth.currentUser;
+    if (currentUser?.uid) {
+      console.log("Found user ID in PeriodHistory:", currentUser.uid);
+      setUserId(currentUser.uid);
+    } else {
+      console.log("No current user found in PeriodHistory");
+      
+      // Try to get user ID from localStorage
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          const parsedData = JSON.parse(userData);
+          if (parsedData.uid) {
+            console.log("Found user ID from localStorage in PeriodHistory:", parsedData.uid);
+            setUserId(parsedData.uid);
+          }
+        } catch (error) {
+          console.error('Error parsing user data in PeriodHistory:', error);
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (userId && !dataFetched) {
+      fetchPeriodHistoryFromFirestore(userId);
+    }
+  }, [userId, dataFetched]);
+
+  useEffect(() => {
+    // Listen for authentication event
+    const handleUserAuthenticated = (event: CustomEvent) => {
+      const { userId } = event.detail;
+      console.log("PeriodHistory: User authenticated event received:", userId);
+      if (userId) {
+        fetchPeriodHistoryFromFirestore(userId);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+
+    // Clean up
+    return () => {
+      window.removeEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+    };
   }, []);
 
   const loadData = () => {
@@ -645,6 +700,123 @@ export default function PeriodHistory() {
     
     return { ...record, change };
   });
+
+  const fetchPeriodHistoryFromFirestore = async (uid: string) => {
+    try {
+      console.log("Fetching period history from Firestore for user:", uid);
+      let historyUpdated = false;
+      
+      // Get period history
+      const periodHistoryRef = collection(db, "users", uid, "periodHistory");
+      const historyQuery = query(periodHistoryRef, orderBy("recordedAt", "desc"), limit(50));
+      const historySnapshot = await getDocs(historyQuery);
+      
+      if (!historySnapshot.empty) {
+        const historyData = historySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            startDate: data.startDate,
+            endDate: data.endDate || null,
+            length: data.periodLength,
+            cycleLength: data.cycleLength,
+            notes: data.notes || ""
+          };
+        });
+        
+        console.log("Found period history in Firestore:", historyData.length, "records");
+        setPeriodHistory(historyData);
+        localStorage.setItem("periodHistoryRecords", JSON.stringify(historyData));
+        historyUpdated = true;
+      }
+      
+      // Get flow records
+      const flowRecordsRef = collection(db, "users", uid, "flowRecords");
+      const flowQuery = query(flowRecordsRef, orderBy("date", "desc"), limit(50));
+      const flowSnapshot = await getDocs(flowQuery);
+      
+      if (!flowSnapshot.empty) {
+        const flowData = flowSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            date: data.date,
+            periodWeek: data.periodWeek || "",
+            padsChanged: data.padsChanged || 0,
+            flow: data.flow || "",
+            color: data.color || "",
+            painLevel: data.painLevel || 0,
+            notes: data.notes || "",
+            periodDay: data.periodDay || "",
+            bodyTemperature: data.bodyTemperature || "",
+            temperatureUnit: data.temperatureUnit || ""
+          };
+        });
+        
+        console.log("Found flow records in Firestore:", flowData.length, "records");
+        setFlowRecords(flowData);
+        localStorage.setItem("periodFlowRecords", JSON.stringify(flowData));
+      }
+      
+      // Get mood records
+      const moodRecordsRef = collection(db, "users", uid, "moods");
+      const moodQuery = query(moodRecordsRef, orderBy("createdAt", "desc"), limit(50));
+      const moodSnapshot = await getDocs(moodQuery);
+      
+      if (!moodSnapshot.empty) {
+        const moodData = moodSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            date: data.date,
+            notes: data.notes || "",
+            other_mood_description: data.other_mood_description || "",
+            other_mood_intensity: data.other_mood_intensity || 0,
+            ...Object.keys(data)
+              .filter(key => key.includes('_') && !['other_mood_description', 'other_mood_intensity'].includes(key))
+              .reduce((obj, key) => ({ ...obj, [key]: data[key] }), {})
+          };
+        });
+        
+        console.log("Found mood records in Firestore:", moodData.length, "records");
+        setMoodRecords(moodData);
+        localStorage.setItem("periodMoodRecords", JSON.stringify(moodData));
+      }
+      
+      // Get weight records
+      const weightRecordsRef = collection(db, "users", uid, "periodWeight");
+      const weightQuery = query(weightRecordsRef, orderBy("createdAt", "desc"), limit(50));
+      const weightSnapshot = await getDocs(weightQuery);
+      
+      if (!weightSnapshot.empty) {
+        const weightData = weightSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            date: data.date,
+            weight: data.weight || 0,
+            weightUnit: data.weightUnit || "kg",
+            notes: data.note || "",
+            source: data.source || "manual"
+          };
+        });
+        
+        console.log("Found weight records in Firestore:", weightData.length, "records");
+        setWeightRecords(weightData);
+        localStorage.setItem("periodWeightRecords", JSON.stringify(weightData));
+      }
+      
+      setDataFetched(true);
+      
+      // If we updated any data, refresh the charts
+      if (historyUpdated) {
+        setTimeout(() => {
+          calculateAverages();
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error fetching period history from Firestore:", error);
+    }
+  };
 
   return (
     <div className="space-y-8">

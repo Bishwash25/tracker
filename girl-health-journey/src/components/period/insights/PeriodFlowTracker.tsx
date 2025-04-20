@@ -33,7 +33,8 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc, collection, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { doc, setDoc, collection, deleteDoc, getDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
 
 const flowOptions = ["Light", "Medium", "Heavy", "Very Heavy"];
 const colorOptions = ["Light Red", "Bright Red", "Dark Red", "Brown", "Black", "Pink"];
@@ -100,6 +101,7 @@ export default function PeriodFlowTracker() {
   });
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [dataFetched, setDataFetched] = useState(false);
   
   // Load user ID on component mount
   useEffect(() => {
@@ -141,73 +143,67 @@ export default function PeriodFlowTracker() {
     console.log("User ID changed to:", userId);
   }, [userId]);
   
-  // Monitor Firebase auth state
+  // Fetch flow records from Firestore when userId changes or on auth event
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user?.uid) {
-        console.log("Auth state changed - user ID:", user.uid);
-        setUserId(user.uid);
-        
-        // Try to load any saved period flow records from Firestore
-        try {
-          const userPeriodFlowRef = collection(db, "users", user.uid, "periodFlow");
-          const q = query(userPeriodFlowRef, orderBy("createdAt", "desc"));
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            const firestoreRecords = querySnapshot.docs.map(doc => {
-              const data = doc.data() as FormValues & { id: string, createdAt: string };
-              
-              // Ensure the date is properly formatted
-              if (typeof data.date === 'string') {
-                try {
-                  // Keep the original data.date as string but ensure it parses correctly
-                  new Date(data.date);
-                } catch (e) {
-                  // If date parsing fails, use current date
-                  console.error("Invalid date format in Firestore record:", data.date);
-                  data.date = new Date().toISOString() as any;
-                }
-              }
-              
-              return data;
-            });
-            
-            console.log("Loaded period flow records from Firestore:", firestoreRecords.length);
-            
-            // Merge with any local records, preferring Firestore data
-            const localRecords = JSON.parse(localStorage.getItem("periodFlowTracking") || "[]");
-            const mergedRecords = [...firestoreRecords];
-            
-            // Add any local records that don't exist in Firestore
-            for (const localRecord of localRecords) {
-              if (!firestoreRecords.some(fbRecord => fbRecord.id === localRecord.id)) {
-                mergedRecords.push(localRecord);
-              }
-            }
-            
-            // Sort by date (newest first)
-            mergedRecords.sort((a, b) => {
-              const dateA = new Date(a.date).getTime();
-              const dateB = new Date(b.date).getTime();
-              return dateB - dateA;
-            });
-            
-            // Update local state and storage
-            setSavedRecords(mergedRecords);
-            localStorage.setItem("periodFlowTracking", JSON.stringify(safeSerializeRecords(mergedRecords)));
-          }
-        } catch (error) {
-          console.error("Error loading period flow records:", error);
-        }
-      } else {
-        console.log("Auth state changed - no user");
+    if (userId && !dataFetched) {
+      fetchFlowRecordsFromFirestore(userId);
+    }
+  }, [userId, dataFetched]);
+
+  // Listen for authentication event
+  useEffect(() => {
+    const handleUserAuthenticated = (event: CustomEvent) => {
+      const { userId } = event.detail;
+      console.log("PeriodFlowTracker: User authenticated event received:", userId);
+      if (userId) {
+        fetchFlowRecordsFromFirestore(userId);
       }
-    });
-    
-    // Clean up the listener when component unmounts
-    return () => unsubscribe();
+    };
+
+    // Add event listener
+    window.addEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+
+    // Clean up
+    return () => {
+      window.removeEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+    };
   }, []);
+
+  // Function to fetch flow records from Firestore
+  const fetchFlowRecordsFromFirestore = async (uid: string) => {
+    try {
+      console.log("Fetching flow records from Firestore for user:", uid);
+      
+      // Get flow records from the flowRecords subcollection
+      const flowRecordsRef = collection(db, "users", uid, "flowRecords");
+      const recordsQuery = query(flowRecordsRef, orderBy("date", "desc"), limit(50));
+      const recordsSnapshot = await getDocs(recordsQuery);
+      
+      if (!recordsSnapshot.empty) {
+        const flowRecords = recordsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            // Ensure date is properly formatted
+            date: data.date
+          };
+        });
+        
+        console.log("Found flow records in Firestore:", flowRecords.length, "records");
+        
+        // Update form state and localStorage
+        setSavedRecords(flowRecords);
+        localStorage.setItem("periodFlowTracking", JSON.stringify(flowRecords));
+      } else {
+        console.log("No flow records found in Firestore");
+      }
+      
+      setDataFetched(true);
+    } catch (error) {
+      console.error("Error fetching flow records from Firestore:", error);
+    }
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

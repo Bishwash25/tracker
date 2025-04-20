@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/chart";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
 
 export default function PeriodTracking() {
   const [periodStartDate, setPeriodStartDate] = useState<Date | null>(null);
@@ -37,6 +38,7 @@ export default function PeriodTracking() {
   const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userId, setUserId] = useState<string | null>(null);
+  const [dataFetched, setDataFetched] = useState(false);
 
   // Load user data from localStorage
   useEffect(() => {
@@ -110,6 +112,102 @@ export default function PeriodTracking() {
       }
     }
   }, []);
+
+  // Fetch user period data from Firestore when userId changes or when auth event fires
+  useEffect(() => {
+    if (userId && !dataFetched) {
+      fetchPeriodDataFromFirestore(userId);
+    }
+  }, [userId, dataFetched]);
+
+  // Listen for authentication event
+  useEffect(() => {
+    const handleUserAuthenticated = (event: CustomEvent) => {
+      const { userId } = event.detail;
+      console.log("PeriodTracking: User authenticated event received:", userId);
+      if (userId) {
+        fetchPeriodDataFromFirestore(userId);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+
+    // Clean up
+    return () => {
+      window.removeEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+    };
+  }, []);
+
+  // Function to fetch period data from Firestore
+  const fetchPeriodDataFromFirestore = async (uid: string) => {
+    try {
+      console.log("Fetching period data from Firestore for user:", uid);
+      
+      // First try to get current period data
+      const periodDataRef = doc(db, "users", uid, "periodData", "current");
+      const periodDoc = await getDoc(periodDataRef);
+      
+      if (periodDoc.exists()) {
+        const data = periodDoc.data();
+        console.log("Found period data in Firestore:", data);
+        
+        if (data.periodStartDate) {
+          const startDate = new Date(data.periodStartDate);
+          setPeriodStartDate(startDate);
+          localStorage.setItem("periodStartDate", data.periodStartDate);
+          
+          if (data.periodEndDate) {
+            setPeriodEndDate(new Date(data.periodEndDate));
+            localStorage.setItem("periodEndDate", data.periodEndDate);
+          }
+          
+          if (data.cycleLength) {
+            setCycleLength(data.cycleLength);
+            localStorage.setItem("cycleLength", data.cycleLength.toString());
+            
+            // Calculate next period date
+            const nextPeriod = addDays(startDate, data.cycleLength);
+            setNextPeriodDate(nextPeriod);
+          }
+          
+          if (data.periodLength) {
+            setPeriodLength(data.periodLength);
+            localStorage.setItem("periodLength", data.periodLength.toString());
+          }
+        }
+      } else {
+        console.log("No current period data found in Firestore");
+      }
+      
+      // Then try to get period history data
+      const periodHistoryRef = collection(db, "users", uid, "periodHistory");
+      const historyQuery = query(periodHistoryRef, orderBy("recordedAt", "desc"), limit(50));
+      const historySnapshot = await getDocs(historyQuery);
+      
+      if (!historySnapshot.empty) {
+        const historyData = historySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            startDate: data.startDate,
+            endDate: data.endDate || null,
+            length: data.periodLength,
+            cycleLength: data.cycleLength
+          };
+        });
+        
+        console.log("Found period history in Firestore:", historyData.length, "records");
+        setPeriodData(historyData);
+        localStorage.setItem("periodHistory", JSON.stringify(historyData));
+      } else {
+        console.log("No period history found in Firestore");
+      }
+      
+      setDataFetched(true);
+    } catch (error) {
+      console.error("Error fetching period data from Firestore:", error);
+    }
+  };
 
   // Set up a timer to update the current time every minute
   useEffect(() => {

@@ -40,7 +40,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc, collection, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, collection, deleteDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
 
 // Define mood parameters
 const moodParameters = [
@@ -105,6 +106,7 @@ export default function MoodTracker() {
     return saved ? JSON.parse(saved) : [];
   });
   const [userId, setUserId] = useState<string | null>(null);
+  const [dataFetched, setDataFetched] = useState(false);
   
   // Load user ID on component mount
   useEffect(() => {
@@ -156,6 +158,74 @@ export default function MoodTracker() {
     // Clean up the listener when component unmounts
     return () => unsubscribe();
   }, []);
+  
+  // Fetch mood records from Firestore when userId changes or on auth event
+  useEffect(() => {
+    if (userId && !dataFetched) {
+      fetchMoodRecordsFromFirestore(userId);
+    }
+  }, [userId, dataFetched]);
+
+  // Listen for authentication event
+  useEffect(() => {
+    const handleUserAuthenticated = (event: CustomEvent) => {
+      const { userId } = event.detail;
+      console.log("MoodTracker: User authenticated event received:", userId);
+      if (userId) {
+        fetchMoodRecordsFromFirestore(userId);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+
+    // Clean up
+    return () => {
+      window.removeEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+    };
+  }, []);
+
+  // Function to fetch mood records from Firestore
+  const fetchMoodRecordsFromFirestore = async (uid: string) => {
+    try {
+      console.log("Fetching mood records from Firestore for user:", uid);
+      
+      // Get mood records from the moods subcollection
+      const moodsRef = collection(db, "users", uid, "moods");
+      const moodsQuery = query(moodsRef, orderBy("createdAt", "desc"), limit(50));
+      const moodsSnapshot = await getDocs(moodsQuery);
+      
+      if (!moodsSnapshot.empty) {
+        const moodRecords = moodsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          
+          // Process date properly
+          let processedDate = data.date;
+          if (typeof processedDate === 'string') {
+            processedDate = new Date(processedDate);
+          }
+          
+          return {
+            ...data,
+            id: doc.id,
+            date: processedDate
+          };
+        });
+        
+        console.log("Found mood records in Firestore:", moodRecords.length, "records");
+        
+        // Update local state and localStorage
+        setSavedRecords(moodRecords);
+        localStorage.setItem("moodTrackingComprehensive", JSON.stringify(moodRecords));
+      } else {
+        console.log("No mood records found in Firestore");
+      }
+      
+      setDataFetched(true);
+    } catch (error) {
+      console.error("Error fetching mood records from Firestore:", error);
+    }
+  };
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

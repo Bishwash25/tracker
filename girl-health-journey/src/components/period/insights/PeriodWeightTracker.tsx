@@ -24,7 +24,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc, deleteDoc, collection } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
 
 interface WeightRecord {
   id: string;
@@ -42,6 +43,7 @@ export default function PeriodWeightTracker() {
   const [viewMode, setViewMode] = useState<ViewMode>("add");
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [dataFetched, setDataFetched] = useState(false);
   const { toast } = useToast();
 
   // Load user ID on component mount
@@ -94,12 +96,75 @@ export default function PeriodWeightTracker() {
     return () => unsubscribe();
   }, []);
 
+  // Load records from localStorage (original behavior)
   useEffect(() => {
     const storedRecords = localStorage.getItem("periodWeightRecords");
     if (storedRecords) {
       setRecords(JSON.parse(storedRecords));
     }
   }, []);
+
+  // Fetch weight records from Firestore when userId changes or on auth event
+  useEffect(() => {
+    if (userId && !dataFetched) {
+      fetchWeightRecordsFromFirestore(userId);
+    }
+  }, [userId, dataFetched]);
+
+  // Listen for authentication event
+  useEffect(() => {
+    const handleUserAuthenticated = (event: CustomEvent) => {
+      const { userId } = event.detail;
+      console.log("PeriodWeightTracker: User authenticated event received:", userId);
+      if (userId) {
+        fetchWeightRecordsFromFirestore(userId);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+
+    // Clean up
+    return () => {
+      window.removeEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
+    };
+  }, []);
+
+  // Function to fetch weight records from Firestore
+  const fetchWeightRecordsFromFirestore = async (uid: string) => {
+    try {
+      console.log("Fetching weight records from Firestore for user:", uid);
+      
+      // Get weight records from the periodWeight subcollection
+      const weightRecordsRef = collection(db, "users", uid, "periodWeight");
+      const recordsQuery = query(weightRecordsRef, orderBy("createdAt", "desc"), limit(50));
+      const recordsSnapshot = await getDocs(recordsQuery);
+      
+      if (!recordsSnapshot.empty) {
+        const weightRecords = recordsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            date: data.date,
+            weight: data.weight,
+            note: data.note || ""
+          };
+        });
+        
+        console.log("Found weight records in Firestore:", weightRecords.length, "records");
+        
+        // Update local state and localStorage
+        setRecords(weightRecords);
+        localStorage.setItem("periodWeightRecords", JSON.stringify(weightRecords));
+      } else {
+        console.log("No weight records found in Firestore");
+      }
+      
+      setDataFetched(true);
+    } catch (error) {
+      console.error("Error fetching weight records from Firestore:", error);
+    }
+  };
 
   // Save weight record to Firebase
   const saveWeightRecordToFirestore = async (weightData: WeightRecord) => {
