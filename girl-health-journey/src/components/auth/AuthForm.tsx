@@ -14,7 +14,7 @@ import {
   User
 } from "firebase/auth";
 
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 interface UserData {
   name: string | null;
@@ -82,17 +82,26 @@ export default function AuthForm() {
     const userRef = doc(db, "users", user.uid);
 
     try {
+      // First check if user already exists in Firestore
+      const userDoc = await getDoc(userRef);
+      const isExistingUser = userDoc.exists();
+      
+      // Update user data in Firestore
       await setDoc(userRef, {
         name: user.displayName || "",
         email: user.email || "",
         photoURL: user.photoURL || "",
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        lastLogin: new Date().toISOString(),
+        // Only set createdAt for new users
+        ...(!isExistingUser && { createdAt: new Date().toISOString() })
       }, { merge: true });
 
-      console.log("User saved to Firestore");
+      console.log(isExistingUser ? "Existing user updated in Firestore" : "New user saved to Firestore");
+      
+      return isExistingUser;
     } catch (error) {
       console.error("Error saving user to Firestore:", error);
+      return false;
     }
   };
 

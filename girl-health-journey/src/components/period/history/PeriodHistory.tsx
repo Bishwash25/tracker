@@ -117,13 +117,18 @@ export default function PeriodHistory() {
   }, []);
 
   useEffect(() => {
-    // Try to get user ID from Firebase Auth
-    const currentUser = auth.currentUser;
-    if (currentUser?.uid) {
-      console.log("Found user ID in PeriodHistory:", currentUser.uid);
-      setUserId(currentUser.uid);
-    } else {
-      console.log("No current user found in PeriodHistory");
+    const loadUserId = async () => {
+      console.log("PeriodHistory component mounted, checking for user ID");
+      
+      // Try to get user ID from Firebase Auth
+      const currentUser = auth.currentUser;
+      if (currentUser?.uid) {
+        console.log("Found user ID in PeriodHistory:", currentUser.uid);
+        setUserId(currentUser.uid);
+        return;
+      } else {
+        console.log("No current user found in PeriodHistory");
+      }
       
       // Try to get user ID from localStorage
       const userData = localStorage.getItem('user');
@@ -137,8 +142,27 @@ export default function PeriodHistory() {
         } catch (error) {
           console.error('Error parsing user data in PeriodHistory:', error);
         }
+      } else {
+        console.log("No user data found in localStorage");
       }
-    }
+    };
+    
+    loadUserId();
+  }, []);
+  
+  // Monitor Firebase auth state
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user?.uid) {
+        console.log("Auth state changed - user ID:", user.uid);
+        setUserId(user.uid);
+      } else {
+        console.log("Auth state changed - no user");
+      }
+    });
+    
+    // Clean up the listener when component unmounts
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

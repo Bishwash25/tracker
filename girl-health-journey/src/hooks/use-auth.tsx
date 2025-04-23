@@ -3,7 +3,7 @@ import { User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
 import { getFromStorage, saveToStorage } from "@/lib/storage-utils";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 
 interface AuthContextType {
   user: User | null;
@@ -26,14 +26,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Function to fetch user data from Firestore
+  // Function to fetch user data from Firestore and sync to localStorage
   const fetchUserDataFromFirestore = async (userId: string) => {
     try {
+      console.log("Fetching user data from Firestore for:", userId);
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
       
       if (userDoc.exists()) {
         console.log("Found user data in Firestore:", userId);
+        const firestoreData = userDoc.data();
+        
+        // Get existing user data from localStorage
+        const existingUserData = getFromStorage("user", null);
+        
+        // Merge Firestore data with existing user data
+        const mergedUserData = {
+          ...existingUserData,
+          ...firestoreData,
+          uid: userId, // Ensure UID is always set correctly
+          lastSynced: new Date().toISOString()
+        };
+        
+        // Save merged data back to localStorage
+        saveToStorage("user", mergedUserData);
+        console.log("Synced Firestore data to localStorage", mergedUserData);
+        
+        // Fetch additional user-specific collections
+        await syncUserCollections(userId);
         
         // Dispatch custom event to notify components that user data is available
         const event = new CustomEvent(USER_AUTHENTICATED_EVENT, { 
@@ -51,6 +71,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching user data from Firestore:", error);
+      return false;
+    }
+  };
+  
+  // Function to sync user collections from Firestore to localStorage
+  const syncUserCollections = async (userId: string) => {
+    try {
+      // Sync period data
+      const periodDataRef = doc(db, "users", userId, "periodData", "current");
+      const periodDoc = await getDoc(periodDataRef);
+      
+      if (periodDoc.exists()) {
+        const periodData = periodDoc.data();
+        
+        // Save period data to localStorage
+        if (periodData.periodStartDate) {
+          localStorage.setItem("periodStartDate", periodData.periodStartDate);
+        }
+        if (periodData.periodEndDate) {
+          localStorage.setItem("periodEndDate", periodData.periodEndDate);
+        }
+        if (periodData.cycleLength) {
+          localStorage.setItem("cycleLength", periodData.cycleLength.toString());
+        }
+        if (periodData.periodLength) {
+          localStorage.setItem("periodLength", periodData.periodLength.toString());
+        }
+        
+        console.log("Synced period data from Firestore to localStorage");
+      }
+      
+      // Sync period history
+      const historyRef = collection(db, "users", userId, "periodHistory");
+      const historySnapshot = await getDocs(historyRef);
+      
+      if (!historySnapshot.empty) {
+        const historyData = historySnapshot.docs.map(doc => doc.data());
+        localStorage.setItem("periodHistory", JSON.stringify(historyData));
+        console.log("Synced period history from Firestore to localStorage");
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error syncing user collections:", error);
       return false;
     }
   };
@@ -174,4 +238,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
-export default useAuth; 
+export default useAuth;
