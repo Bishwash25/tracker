@@ -145,10 +145,12 @@ export default function PeriodFlowTracker() {
   
   // Fetch flow records from Firestore when userId changes or on auth event
   useEffect(() => {
-    if (userId && !dataFetched) {
+    if (userId) {
+      setDataFetched(false); // Always reset to force fetch
       fetchFlowRecordsFromFirestore(userId);
     }
-  }, [userId, dataFetched]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // Listen for authentication event
   useEffect(() => {
@@ -156,6 +158,7 @@ export default function PeriodFlowTracker() {
       const { userId } = event.detail;
       console.log("PeriodFlowTracker: User authenticated event received:", userId);
       if (userId) {
+        setDataFetched(false); // Reset to force fetch
         fetchFlowRecordsFromFirestore(userId);
       }
     };
