@@ -175,7 +175,7 @@ export default function PeriodFlowTracker() {
       console.log("Fetching flow records from Firestore for user:", uid);
       
       // Get flow records from the flowRecords subcollection
-      const flowRecordsRef = collection(db, "users", uid, "flowRecords");
+      const flowRecordsRef = collection(db, "users", uid, "periodFlow");
       const recordsQuery = query(flowRecordsRef, orderBy("date", "desc"), limit(50));
       const recordsSnapshot = await getDocs(recordsQuery);
       

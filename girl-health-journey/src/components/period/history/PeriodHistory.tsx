@@ -819,7 +819,7 @@ export default function PeriodHistory() {
             date: data.date,
             weight: data.weight || 0,
             weightUnit: data.weightUnit || "kg",
-            notes: data.note || "",
+            notes: data.notes || data.note || "",
             source: data.source || "manual"
           };
         });

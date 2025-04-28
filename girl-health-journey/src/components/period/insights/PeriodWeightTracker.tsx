@@ -563,7 +563,6 @@ export default function PeriodWeightTracker() {
                 </Button>
               )}
             </div>
-            
             {records.length === 0 ? (
               <div className="text-center space-y-4 py-6">
                 <p className="text-muted-foreground">No weight records yet</p>
@@ -588,7 +587,13 @@ export default function PeriodWeightTracker() {
                       <TableRow key={record.id}>
                         <TableCell>{format(new Date(record.date), "MMM d, yyyy")}</TableCell>
                         <TableCell>{record.weight}</TableCell>
-                        <TableCell>{record.note || "-"}</TableCell>
+                        <TableCell>
+                          {record.note && record.note.trim() !== "" ? (
+                            <span className="block max-w-xs whitespace-pre-line break-words text-sm text-muted-foreground bg-muted/50 rounded p-2">{record.note}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -642,4 +647,4 @@ export default function PeriodWeightTracker() {
       </CardContent>
     </Card>
   );
-} 
+}

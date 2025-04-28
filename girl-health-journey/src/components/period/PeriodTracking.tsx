@@ -181,27 +181,27 @@ export default function PeriodTracking() {
       }
       
       // Then try to get period history data
-      const periodHistoryRef = collection(db, "users", uid, "periodHistory");
-      const historyQuery = query(periodHistoryRef, orderBy("recordedAt", "desc"), limit(50));
-      const historySnapshot = await getDocs(historyQuery);
+      // const periodHistoryRef = collection(db, "users", uid, "periodHistory");
+      // const historyQuery = query(periodHistoryRef, orderBy("recordedAt", "desc"), limit(50));
+      // const historySnapshot = await getDocs(historyQuery);
       
-      if (!historySnapshot.empty) {
-        const historyData = historySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            startDate: data.startDate,
-            endDate: data.endDate || null,
-            length: data.periodLength,
-            cycleLength: data.cycleLength
-          };
-        });
+      // if (!historySnapshot.empty) {
+      //   const historyData = historySnapshot.docs.map(doc => {
+      //     const data = doc.data();
+      //     return {
+      //       startDate: data.startDate,
+      //       endDate: data.endDate || null,
+      //       length: data.periodLength,
+      //       cycleLength: data.cycleLength
+      //     };
+      //   });
         
-        console.log("Found period history in Firestore:", historyData.length, "records");
-        setPeriodData(historyData);
-        localStorage.setItem("periodHistory", JSON.stringify(historyData));
-      } else {
-        console.log("No period history found in Firestore");
-      }
+      //   console.log("Found period history in Firestore:", historyData.length, "records");
+      //   setPeriodData(historyData);
+      //   localStorage.setItem("periodHistory", JSON.stringify(historyData));
+      // } else {
+      //   console.log("No period history found in Firestore");
+      // }
       
       setDataFetched(true);
     } catch (error) {
@@ -278,7 +278,26 @@ export default function PeriodTracking() {
       
       setPeriodData(flowData);
     }
-  }, [periodStartDate, periodEndDate, periodLength, cycleLength, currentTime]);
+
+    // Auto-predict new period if today is the expected next period
+    if (
+      periodStartDate &&
+      cycleLength &&
+      periodLength &&
+      nextPeriodDate &&
+      format(new Date(), "yyyy-MM-dd") === format(nextPeriodDate, "yyyy-MM-dd")
+    ) {
+      // Only auto-set if not already set for today
+      if (format(periodStartDate, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd")) {
+        const newStart = new Date();
+        const newEnd = addDays(newStart, periodLength - 1);
+        setPeriodStartDate(newStart);
+        setPeriodEndDate(newEnd);
+        setIsEditing(true); // Prompt user to save new period
+        toast.info("It's time to start a new period! Please review and save your new period details.");
+      }
+    }
+  }, [nextPeriodDate, periodStartDate, cycleLength, periodLength, currentTime]);
 
   const savePeriodDataToFirestore = async () => {
     // If userId not set, try to get it directly from auth
@@ -643,13 +662,23 @@ export default function PeriodTracking() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <label className="text-sm text-muted-foreground">Cycle Length (days)</label>
+                      <label className="text-sm text-muted-foreground">Period cycle (days)</label>
                       <Input
                         type="number"
                         min="21"
                         max="35"
                         value={cycleLength}
                         onChange={(e) => setCycleLength(parseInt(e.target.value))}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm text-muted-foreground">Period Length (days)</label>
+                      <Input
+                        type="number"
+                        min="2"
+                        max="10"
+                        value={periodLength}
+                        onChange={(e) => setPeriodLength(parseInt(e.target.value))}
                       />
                     </div>
                   </div>

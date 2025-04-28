@@ -107,20 +107,6 @@ export default function PeriodProfile() {
     }
   };
 
-  const handleReset = () => {
-    // No longer clearing localStorage data
-    
-    toast({
-      title: "Reset your period",
-      description: "Redirecting to period start page"
-    });
-    
-    // Navigate to the period start page
-    setTimeout(() => {
-      navigate("/period-start");
-    }, 1500);
-  };
-
   return (
     <div className="space-y-6 max-w-md mx-auto p-6">
       <h1 className="text-2xl font-bold">Account Settings</h1>
@@ -136,9 +122,6 @@ export default function PeriodProfile() {
           </p>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button variant="outline" onClick={handleReset} className="w-full">
-            Reset Period Data
-          </Button>
           <Button variant="destructive" onClick={handleLogout} className="w-full">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
