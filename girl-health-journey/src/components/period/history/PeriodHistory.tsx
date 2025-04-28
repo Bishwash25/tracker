@@ -1188,7 +1188,6 @@ export default function PeriodHistory() {
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
-                          
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-2">
                             <div>
                               <p className="text-muted-foreground">Flow:</p>
@@ -1206,8 +1205,17 @@ export default function PeriodHistory() {
                               <p className="text-muted-foreground">Pads/Tampons:</p>
                               <p className="font-medium">{record.padsChanged}</p>
                             </div>
+                            {/* Add body temperature if available */}
+                            {record.bodyTemperature && (
+                              <div className="col-span-2 md:col-span-4">
+                                <p className="text-muted-foreground">Body Temperature:</p>
+                                <p className="font-medium">
+                                  {record.bodyTemperature}
+                                  {record.temperatureUnit || "°C"}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          
                           {record.notes && (
                             <div className="mt-2 text-sm">
                               <p className="text-muted-foreground">Notes:</p>
