@@ -81,11 +81,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Sync period data
       const periodDataRef = doc(db, "users", userId, "periodData", "current");
       const periodDoc = await getDoc(periodDataRef);
-      
       if (periodDoc.exists()) {
         const periodData = periodDoc.data();
-        
-        // Save period data to localStorage
         if (periodData.periodStartDate) {
           localStorage.setItem("periodStartDate", periodData.periodStartDate);
         }
@@ -98,20 +95,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (periodData.periodLength) {
           localStorage.setItem("periodLength", periodData.periodLength.toString());
         }
-        
         console.log("Synced period data from Firestore to localStorage");
       }
-      
+
       // Sync period history
       const historyRef = collection(db, "users", userId, "periodHistory");
       const historySnapshot = await getDocs(historyRef);
-      
       if (!historySnapshot.empty) {
         const historyData = historySnapshot.docs.map(doc => doc.data());
         localStorage.setItem("periodHistory", JSON.stringify(historyData));
         console.log("Synced period history from Firestore to localStorage");
       }
-      
+
+      // Sync mood records
+      const moodsRef = collection(db, "users", userId, "moods");
+      const moodsSnapshot = await getDocs(moodsRef);
+      if (!moodsSnapshot.empty) {
+        const moodRecords = moodsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        localStorage.setItem("moodTrackingComprehensive", JSON.stringify(moodRecords));
+        console.log("Synced mood records from Firestore to localStorage");
+      }
+
+      // Sync flow records
+      const flowRef = collection(db, "users", userId, "periodFlow");
+      const flowSnapshot = await getDocs(flowRef);
+      if (!flowSnapshot.empty) {
+        const flowRecords = flowSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        localStorage.setItem("periodFlowTracking", JSON.stringify(flowRecords));
+        console.log("Synced flow records from Firestore to localStorage");
+      }
+
+      // Sync weight records
+      const weightRef = collection(db, "users", userId, "periodWeight");
+      const weightSnapshot = await getDocs(weightRef);
+      if (!weightSnapshot.empty) {
+        const weightRecords = weightSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        localStorage.setItem("periodWeightRecords", JSON.stringify(weightRecords));
+        console.log("Synced weight records from Firestore to localStorage");
+      }
+
       return true;
     } catch (error) {
       console.error("Error syncing user collections:", error);
