@@ -807,13 +807,6 @@ export default function PeriodFlowTracker() {
                   <Download className="h-4 w-4" />
                   Download PDF
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setActiveView('track')}
-                >
-                  Add New Record
-                </Button>
               </div>
             </div>
             <div className="space-y-3">
