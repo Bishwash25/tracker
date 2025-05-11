@@ -334,35 +334,35 @@ export default function PeriodDashboard() {
                     case "period":
                       phaseInfo = {
                         name: "Menstrual Phase",
-                        description: "Your body is shedding the uterine lining. Focus on self-care and rest.",
+                        description: "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement.",
                         color: "bg-softpink/10 text-softpink"
                       };
                       break;
                     case "follicular":
                       phaseInfo = {
                         name: "Follicular Phase",
-                        description: "Estrogen levels rise as follicles in the ovaries mature. Energy levels often increase.",
+                        description: "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!",
                         color: "bg-yellow-100 text-yellow-700"
                       };
                       break;
                     case "fertility":
                       phaseInfo = {
                         name: "Fertile Window",
-                        description: "This is when pregnancy is most likely to occur if you have unprotected sex.",
+                        description: "This is when pregnancy is most likely to occur. You may notice increased energy and libido.",
                         color: "bg-calmteal/10 text-calmteal"
                       };
                       break;
                     case "ovulation":
                       phaseInfo = {
                         name: "Ovulation Day",
-                        description: "An egg is released from the ovary and can be fertilized for about 24 hours.",
+                        description: "An egg is released and can be fertilized for about 24 hours. You may feel most energetic today.",
                         color: "bg-calmteal/20 text-calmteal"
                       };
                       break;
                     case "luteal":
                       phaseInfo = {
                         name: "Luteal Phase",
-                        description: "Progesterone rises to prepare for potential pregnancy. You might experience PMS symptoms.",
+                        description: "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses.",
                         color: "bg-lavender/10 text-lavender"
                       };
                       break;

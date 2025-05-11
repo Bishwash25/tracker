@@ -113,12 +113,12 @@ export default function PeriodProfile() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Account</CardTitle>
+          <CardTitle>Profile</CardTitle>
           <CardDescription>{userEmail}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Start over your period tracking with a new cycle.
+           Thanks For choosing Floo! We are here to help you track your period and manage your health.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format, differenceInDays, addDays } from "date-fns";
+import { format, differenceInDays, addDays, isWithinInterval, isSameDay, subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon, Droplets, Clock, Save, Edit, AlertCircle } from "lucide-react";
@@ -416,7 +416,7 @@ export default function PeriodTracking() {
     }
   };
 
-  // Get current cycle phase
+  // Get current cycle phase - using the same logic as PeriodDashboard for consistency
   const getCurrentPhase = () => {
     if (!periodStartDate) return "Not Set";
     
@@ -424,35 +424,38 @@ export default function PeriodTracking() {
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
     const nextPeriod = addDays(periodStartDate, cycleLength);
     
+    // Use the same phase determination logic as in PeriodDashboard
+    const fertilityWindow = {
+      ovulation: addDays(nextPeriod, -14),
+      start: addDays(addDays(nextPeriod, -14), -5),
+      end: addDays(nextPeriod, -14)
+    };
+    
     // If on period
-    if (today >= periodStartDate && today <= periodEnd) {
+    if (isWithinInterval(today, { start: periodStartDate, end: periodEnd })) {
       return "Menstrual Phase";
     }
     
-    // Calculate fertility window (5 days before ovulation + ovulation day)
-    const ovulationDay = addDays(nextPeriod, -14);
-    const fertilityStart = addDays(ovulationDay, -5);
-    const fertilityEnd = ovulationDay;
+    // Check if on ovulation day specifically
+    if (isSameDay(today, fertilityWindow.ovulation)) {
+      return "Ovulation Day";
+    }
     
-    if (today >= fertilityStart && today <= fertilityEnd) {
-      // Check if on ovulation day specifically
-      if (differenceInDays(today, ovulationDay) === 0) {
-        return "Ovulation Day";
-      }
+    // Check if in fertility window
+    if (isWithinInterval(today, { start: fertilityWindow.start, end: fertilityWindow.end })) {
       return "Fertility Window";
     }
     
-    // If after period but before fertility window
-    if (today > periodEnd && today < fertilityStart) {
-      return "Follicular Phase";
-    }
-    
-    // If after ovulation but before next period
-    if (today > ovulationDay && today < nextPeriod) {
+    // Check if in luteal phase (after ovulation, before next period)
+    if (isWithinInterval(today, { 
+      start: addDays(fertilityWindow.ovulation, 1), 
+      end: subDays(nextPeriod, 1) 
+    })) {
       return "Luteal Phase";
     }
     
-    return "Calculating...";
+    // If none of the above, must be in follicular phase
+    return "Follicular Phase";
   };
 
   // Function to get color based on phase

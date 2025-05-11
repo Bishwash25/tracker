@@ -43,10 +43,10 @@ export default function TermsConditions() {
       <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
         <ScrollArea className="h-64 w-full rounded-md border">
           <div className="p-4 text-sm">
-            <h2 className="font-bold text-lg mb-2">Her Health App Terms of Service</h2>
+            <h2 className="font-bold text-lg mb-2">Floo App Terms of Service</h2>
             
             <p className="mb-4">
-              These Terms of Service govern your use of the Her Health application, 
+              These Terms of Service govern your use of the Floo application, 
               website, and services (collectively, "Services"). By using our Services, 
               you agree to these terms. Please read them carefully.
             </p>

@@ -37,7 +37,7 @@ export default function PeriodSidebarLayout() {
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="container flex h-16 items-center justify-between px-4">
-          <h1 className="font-heading font-bold text-lavender text-xl">Her Health</h1>
+          <h1 className="font-heading font-bold text-lavender text-xl">Floo</h1>
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -46,7 +46,7 @@ export default function PeriodSidebarLayout() {
             </SheetTrigger>
             <SheetContent side="left">
               <div className="flex flex-col gap-6 mt-8">
-                <h2 className="font-heading font-bold text-lavender text-xl">Her Health</h2>
+                <h2 className="font-heading font-bold text-lavender text-xl">Floo</h2>
                 {navItems.map((item) => (
                   <NavLink
                     key={item.path}
