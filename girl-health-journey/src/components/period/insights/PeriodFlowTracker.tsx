@@ -175,7 +175,7 @@ export default function PeriodFlowTracker() {
   // Function to fetch flow records from Firestore
   const fetchFlowRecordsFromFirestore = async (uid: string) => {
     try {
-      console.log("Fetching flow records from Firestore for user:", uid);
+      console.log("Fetching flow records for user:", uid);
       
       // Get flow records from the flowRecords subcollection
       const flowRecordsRef = collection(db, "users", uid, "periodFlow");
@@ -193,18 +193,18 @@ export default function PeriodFlowTracker() {
           };
         });
         
-        console.log("Found flow records in Firestore:", flowRecords.length, "records");
+        console.log("Found flow records:", flowRecords.length, "records");
         
         // Update form state and localStorage
         setSavedRecords(flowRecords);
         localStorage.setItem("periodFlowTracking", JSON.stringify(flowRecords));
       } else {
-        console.log("No flow records found in Firestore");
+        console.log("No flow records found");
       }
       
       setDataFetched(true);
     } catch (error) {
-      console.error("Error fetching flow records from Firestore:", error);
+      console.error("Error fetching flow records:", error);
     }
   };
 
@@ -360,7 +360,7 @@ export default function PeriodFlowTracker() {
       if (firestoreSaveResult) {
         toast({
           title: "Flow record saved",
-          description: "Your period flow information has been saved to cloud.",
+          description: "Your period flow information has been saved.",
         });
       } else {
         toast({

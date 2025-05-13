@@ -118,7 +118,7 @@ export default function PeriodProfile() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-           Thanks For choosing Floo! We are here to help you track your period and manage your health.
+           Thanks For choosing My Floo! We are here to help you track your period and manage your health.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

@@ -14,7 +14,7 @@ const Index = () => {
           className="max-w-lg"
         >
           <h1 className="text-4xl md:text-5xl font-heading font-bold text-lavender mb-4">
-            Floo
+            My Floo
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-6">
             Your personal companion for period tracking

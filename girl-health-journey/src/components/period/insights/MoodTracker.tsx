@@ -188,7 +188,7 @@ export default function MoodTracker() {
   // Function to fetch mood records from Firestore
   const fetchMoodRecordsFromFirestore = async (uid: string) => {
     try {
-      console.log("Fetching mood records from Firestore for user:", uid);
+      console.log("Fetching mood records for user:", uid);
       
       // Get mood records from the moods subcollection
       const moodsRef = collection(db, "users", uid, "moods");
@@ -212,18 +212,18 @@ export default function MoodTracker() {
           };
         });
         
-        console.log("Found mood records in Firestore:", moodRecords.length, "records");
+        console.log("Found mood records:", moodRecords.length, "records");
         
         // Update local state and localStorage
         setSavedRecords(moodRecords);
         localStorage.setItem("moodTrackingComprehensive", JSON.stringify(moodRecords));
       } else {
-        console.log("No mood records found in Firestore");
+        console.log("No mood records found");
       }
       
       setDataFetched(true);
     } catch (error) {
-      console.error("Error fetching mood records from Firestore:", error);
+      console.error("Error fetching mood records:", error);
     }
   };
   
@@ -282,7 +282,7 @@ export default function MoodTracker() {
       console.log("Successfully saved mood data ");
       return true;
     } catch (error) {
-      console.error("Error saving mood data to Firestore:", error);
+      console.error("Error saving mood data:", error);
       return false;
     }
   };
@@ -294,7 +294,7 @@ export default function MoodTracker() {
       if (currentUser?.uid) {
         setUserId(currentUser.uid);
       } else {
-        console.error("Cannot delete from Firestore: No user ID available");
+        console.error("Cannot delete: No user ID available");
         return false;
       }
     }
@@ -346,7 +346,7 @@ export default function MoodTracker() {
     const firebaseSaveResult = await saveMoodToFirestore(newRecord);
     
     if (firebaseSaveResult) {
-      toast.success("Mood record saved successfully to cloud");
+      toast.success("Mood record saved successfully.");
     } else {
       toast.success("Mood record saved ");
     }

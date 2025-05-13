@@ -96,11 +96,11 @@ export default function AuthForm() {
         ...(!isExistingUser && { createdAt: new Date().toISOString() })
       }, { merge: true });
 
-      console.log(isExistingUser ? "Existing user updated in Firestore" : "New user saved to Firestore");
+      console.log(isExistingUser ? "Existing user updated" : "New user saved");
       
       return isExistingUser;
     } catch (error) {
-      console.error("Error saving user to Firestore:", error);
+      console.error("Error saving user:", error);
       return false;
     }
   };
@@ -136,7 +136,7 @@ export default function AuthForm() {
 
       toast({
         title: "Login successful",
-        description: "Welcome to Floo!",
+        description: "Welcome to My Floo!",
       });
 
       const hasAcceptedTerms = localStorage.getItem("termsAccepted") === "true";
@@ -196,7 +196,7 @@ export default function AuthForm() {
     <div className="w-full max-w-md mx-auto p-6 space-y-6">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-heading font-bold text-lavender mb-2">
-          Welcome to Floo
+          Welcome to My Floo
         </h1>
         <p className="text-muted-foreground">
           Sign in to track your Period journey
@@ -253,10 +253,10 @@ export default function AuthForm() {
       <footer className="mt-24 pt-6 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <p className="text-xs text-purple-600">
-            &copy; {new Date().getFullYear()} Floo. All rights reserved.
+            &copy; {new Date().getFullYear()} My Floo. All rights reserved.
           </p>
           <a
-            href="https://www.instagram.com/floo.2025/"
+            href="https://www.instagram.com/myfloo_2025/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-purple-600 hover:text-purple-800 transition-colors"

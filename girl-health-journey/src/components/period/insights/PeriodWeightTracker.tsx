@@ -133,7 +133,7 @@ export default function PeriodWeightTracker() {
   // Function to fetch weight records from Firestore
   const fetchWeightRecordsFromFirestore = async (uid: string) => {
     try {
-      console.log("Fetching weight records from Firestore for user:", uid);
+      console.log("Fetching weight records for user:", uid);
       
       // Get weight records from the periodWeight subcollection
       const weightRecordsRef = collection(db, "users", uid, "periodWeight");
@@ -151,18 +151,18 @@ export default function PeriodWeightTracker() {
           };
         });
         
-        console.log("Found weight records in Firestore:", weightRecords.length, "records");
+        console.log("Found weight records:", weightRecords.length, "records");
         
         // Update local state and localStorage
         setRecords(weightRecords);
         localStorage.setItem("periodWeightRecords", JSON.stringify(weightRecords));
       } else {
-        console.log("No weight records found in Firestore");
+        console.log("No weight records found");
       }
       
       setDataFetched(true);
     } catch (error) {
-      console.error("Error fetching weight records from Firestore:", error);
+      console.error("Error fetching weight records:", error);
     }
   };
 
@@ -290,7 +290,7 @@ export default function PeriodWeightTracker() {
       if (firestoreSaveResult) {
         toast({
           title: "Weight record saved",
-          description: "Your weight record has been saved to cloud.",
+          description: "Your weight record has been saved.",
         });
       } else {
         toast({
