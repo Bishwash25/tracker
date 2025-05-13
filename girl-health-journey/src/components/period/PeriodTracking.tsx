@@ -417,45 +417,79 @@ export default function PeriodTracking() {
   };
 
   // Get current cycle phase - using the same logic as PeriodDashboard for consistency
+    // Use the same getFertilityWindow function as in PeriodDashboard
+  const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
+    const nextPeriodDate = addDays(periodStartDate, cycleLength);
+    const ovulationDate = subDays(nextPeriodDate, 14);
+    
+    return {
+      start: subDays(ovulationDate, 5),
+      end: ovulationDate,
+      ovulation: ovulationDate
+    };
+  };
+
+  // Use the same getCyclePhase function as in PeriodDashboard
+  const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number) => {
+    // Check if date is within period
+    if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
+      return "period";
+    }
+    
+    // Check if date is the day before next period (should be luteal phase)
+    const nextPeriodDate = addDays(periodStart, cycleLength);
+    if (isSameDay(date, subDays(nextPeriodDate, 1))) {
+      return "luteal";
+    }
+    
+    const fertilityWindow = getFertilityWindow(periodStart, cycleLength);
+    
+    // Check if date is within fertility window
+    if (isWithinInterval(date, { start: fertilityWindow.start, end: fertilityWindow.end })) {
+      return "fertility";
+    }
+    
+    // Check if date is ovulation day
+    if (isSameDay(date, fertilityWindow.ovulation)) {
+      return "ovulation";
+    }
+    
+    // Check if date is in luteal phase
+    if (isWithinInterval(date, { 
+      start: addDays(fertilityWindow.ovulation, 1), 
+      end: subDays(nextPeriodDate, 2) // End one day before the day before next period
+    })) {
+      return "luteal";
+    }
+    
+    // If none of the above, it's follicular phase
+    return "follicular";
+  };
+
   const getCurrentPhase = () => {
     if (!periodStartDate) return "Not Set";
     
-    const today = new Date();
+    // Use currentTime instead of creating a new Date() to ensure consistency
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
-    const nextPeriod = addDays(periodStartDate, cycleLength);
     
     // Use the same phase determination logic as in PeriodDashboard
-    const fertilityWindow = {
-      ovulation: addDays(nextPeriod, -14),
-      start: addDays(addDays(nextPeriod, -14), -5),
-      end: addDays(nextPeriod, -14)
-    };
+    const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength);
     
-    // If on period
-    if (isWithinInterval(today, { start: periodStartDate, end: periodEnd })) {
-      return "Menstrual Phase";
+    // Map the phase to the display name
+    switch (phase) {
+      case "period":
+        return "Menstrual Phase";
+      case "follicular":
+        return "Follicular Phase";
+      case "fertility":
+        return "Fertility Window";
+      case "ovulation":
+        return "Ovulation Day";
+      case "luteal":
+        return "Luteal Phase";
+      default:
+        return "Not Set";
     }
-    
-    // Check if on ovulation day specifically
-    if (isSameDay(today, fertilityWindow.ovulation)) {
-      return "Ovulation Day";
-    }
-    
-    // Check if in fertility window
-    if (isWithinInterval(today, { start: fertilityWindow.start, end: fertilityWindow.end })) {
-      return "Fertility Window";
-    }
-    
-    // Check if in luteal phase (after ovulation, before next period)
-    if (isWithinInterval(today, { 
-      start: addDays(fertilityWindow.ovulation, 1), 
-      end: subDays(nextPeriod, 1) 
-    })) {
-      return "Luteal Phase";
-    }
-    
-    // If none of the above, must be in follicular phase
-    return "Follicular Phase";
   };
 
   // Function to get color based on phase

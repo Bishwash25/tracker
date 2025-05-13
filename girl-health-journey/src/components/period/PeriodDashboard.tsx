@@ -19,27 +19,38 @@ const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
 };
 
 const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number) => {
+  // Check if date is within period
   if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
     return "period";
   }
   
+  // Check if date is the day before next period (should be luteal phase)
+  const nextPeriodDate = addDays(periodStart, cycleLength);
+  if (isSameDay(date, subDays(nextPeriodDate, 1))) {
+    return "luteal";
+  }
+  
   const fertilityWindow = getFertilityWindow(periodStart, cycleLength);
   
+  // Check if date is within fertility window
   if (isWithinInterval(date, { start: fertilityWindow.start, end: fertilityWindow.end })) {
     return "fertility";
   }
   
+  // Check if date is ovulation day
   if (isSameDay(date, fertilityWindow.ovulation)) {
     return "ovulation";
   }
   
+  // Check if date is in luteal phase
   if (isWithinInterval(date, { 
     start: addDays(fertilityWindow.ovulation, 1), 
-    end: subDays(addDays(periodStart, cycleLength), 1) 
+    end: subDays(nextPeriodDate, 2) // End one day before the day before next period
   })) {
     return "luteal";
   }
   
+  // If none of the above, it's follicular phase
   return "follicular";
 };
 
