@@ -429,40 +429,36 @@ export default function PeriodTracking() {
     };
   };
 
-  // Use the same getCyclePhase function as in PeriodDashboard
+  // Updated getCyclePhase function to match FertilityChart
   const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number) => {
-    // Check if date is within period
+    // Check if date is within period (menstruation phase)
     if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
-      return "period";
+      return "menstruation";
     }
     
-    // Check if date is the day before next period (should be luteal phase)
-    const nextPeriodDate = addDays(periodStart, cycleLength);
-    if (isSameDay(date, subDays(nextPeriodDate, 1))) {
-      return "luteal";
-    }
+    // Calculate phase boundaries similar to FertilityChart
+    const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
+    const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 2);
+    // Extend ovulation phase to include day 22 as shown in the fertility chart
+    const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 3); // Changed from +1 to +3
+    const cycleEnd = addDays(periodStart, cycleLength - 1);
     
-    const fertilityWindow = getFertilityWindow(periodStart, cycleLength);
-    
-    // Check if date is within fertility window
-    if (isWithinInterval(date, { start: fertilityWindow.start, end: fertilityWindow.end })) {
-      return "fertility";
-    }
-    
-    // Check if date is ovulation day
-    if (isSameDay(date, fertilityWindow.ovulation)) {
+    // Check if date is in ovulation phase
+    if (date >= ovulationStart && date < lutealStart) {
       return "ovulation";
     }
     
     // Check if date is in luteal phase
-    if (isWithinInterval(date, { 
-      start: addDays(fertilityWindow.ovulation, 1), 
-      end: subDays(nextPeriodDate, 2) // End one day before the day before next period
-    })) {
+    if (date >= lutealStart && date <= cycleEnd) {
       return "luteal";
     }
     
-    // If none of the above, it's follicular phase
+    // Check if date is in follicular phase
+    if (date >= follicularStart && date < ovulationStart) {
+      return "follicular";
+    }
+    
+    // Default fallback
     return "follicular";
   };
 
@@ -472,39 +468,56 @@ export default function PeriodTracking() {
     // Use currentTime instead of creating a new Date() to ensure consistency
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
     
-    // Use the same phase determination logic as in PeriodDashboard
+    // Use the updated phase determination logic
     const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength);
     
-    // Map the phase to the display name
+    // Map the phase to the display name and fertility information
     switch (phase) {
-      case "period":
-        return "Menstrual Phase";
+      case "menstruation":
+        return "Menstruation Phase";
       case "follicular":
         return "Follicular Phase";
-      case "fertility":
-        return "Fertility Window";
       case "ovulation":
-        return "Ovulation Day";
+        return "Ovulation Phase";
       case "luteal":
         return "Luteal Phase";
       default:
         return "Not Set";
     }
   };
+  
+  // Function to get fertility information based on phase
+  const getFertilityInfo = () => {
+    if (!periodStartDate) return "";
+    
+    const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
+    const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength);
+    
+    switch (phase) {
+      case "menstruation":
+        return "0% (Very low chance of conception)";
+      case "follicular":
+        return "0-70% (Gradually increasing)";
+      case "ovulation":
+        return "80-95% (Your most fertile window)";
+      case "luteal":
+        return "5% (Very low chance of conception)";
+      default:
+        return "";
+    }
+  };
 
-  // Function to get color based on phase
+  // Function to get color based on phase - using same colors as FertilityChart
   const getPhaseColor = (phase) => {
     switch (phase) {
-      case "Menstrual Phase":
-        return "bg-softpink/20 text-softpink";
+      case "Menstruation Phase":
+        return "bg-[#ff4d6d]/20 text-[#ff4d6d]";
       case "Follicular Phase":
-        return "bg-yellow-200 text-yellow-800";
-      case "Fertility Window":
-        return "bg-calmteal/20 text-calmteal";
-      case "Ovulation Day":
-        return "bg-calmteal/30 text-calmteal";
+        return "bg-[#60A5FA]/20 text-[#60A5FA]";
+      case "Ovulation Phase":
+        return "bg-[#34D399]/20 text-[#34D399]";
       case "Luteal Phase":
-        return "bg-lavender/20 text-lavender";
+        return "bg-[#9b87f5]/20 text-[#9b87f5]";
       default:
         return "bg-gray-200 text-gray-800";
     }
@@ -556,10 +569,25 @@ export default function PeriodTracking() {
               </div>
               
               {periodStartDate && nextPeriodDate && (
-                <div className="mt-4 flex justify-center gap-2">
-                  <Badge variant="outline" className="bg-softpink/20 text-softpink border-softpink/30 text-sm font-medium py-1">
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30 text-sm font-medium py-1">
                     Next period: {format(nextPeriodDate, "MMM d, yyyy")}
                   </Badge>
+                  <Badge variant="outline" className={cn(getPhaseColor(currentPhase), "font-medium py-1")}>
+                    {currentPhase}
+                  </Badge>
+                  <div className="text-xs flex items-center gap-1">
+                    <div 
+                      className="h-2 w-2 rounded-full" 
+                      style={{ 
+                        backgroundColor: currentPhase === "Menstruation Phase" ? "#ff4d6d" : 
+                          currentPhase === "Follicular Phase" ? "#60A5FA" : 
+                          currentPhase === "Ovulation Phase" ? "#34D399" : 
+                          "#9b87f5" 
+                      }}
+                    />
+                    <span>Fertility: {getFertilityInfo()}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -780,32 +808,36 @@ export default function PeriodTracking() {
               <div className={cn("p-4 rounded-lg", getPhaseColor(currentPhase))}>
                 <h3 className="font-bold text-lg mb-2">{currentPhase}</h3>
                 <p className="text-sm">
-                  {currentPhase === "Menstrual Phase" && 
+                  {currentPhase === "Menstruation Phase" && 
                     "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement."}
                   {currentPhase === "Follicular Phase" && 
                     "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!"}
-                  {currentPhase === "Fertility Window" && 
+                  {currentPhase === "Ovulation Phase" && 
                     "This is when pregnancy is most likely to occur. You may notice increased energy and libido."}
-                  {currentPhase === "Ovulation Day" && 
-                    "An egg is released and can be fertilized for about 24 hours. You may feel most energetic today."}
                   {currentPhase === "Luteal Phase" && 
                     "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses."}
                 </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-xs font-medium">Fertility:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {getFertilityInfo()}
+                  </Badge>
+                </div>
               </div>
               
               <div className="mt-4">
                 <h3 className="font-semibold mb-2">Cycle At A Glance</h3>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="bg-softpink/20 text-softpink border-softpink/30">
-                    Period: {periodLength} days
+                  <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30">
+                    Menstruation: {periodLength} days
                   </Badge>
-                  <Badge variant="outline" className="bg-yellow-200 text-yellow-800 border-yellow-300">
+                  <Badge variant="outline" className="bg-[#60A5FA]/20 text-[#60A5FA] border-[#60A5FA]/30">
                     Follicular: ~7 days
                   </Badge>
-                  <Badge variant="outline" className="bg-calmteal/20 text-calmteal border-calmteal/30">
-                    Fertility: ~6 days
+                  <Badge variant="outline" className="bg-[#34D399]/20 text-[#34D399] border-[#34D399]/30">
+                    Ovulation: ~6 days
                   </Badge>
-                  <Badge variant="outline" className="bg-lavender/20 text-lavender border-lavender/30">
+                  <Badge variant="outline" className="bg-[#9b87f5]/20 text-[#9b87f5] border-[#9b87f5]/30">
                     Luteal: ~14 days
                   </Badge>
                 </div>

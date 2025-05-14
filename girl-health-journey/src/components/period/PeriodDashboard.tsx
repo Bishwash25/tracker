@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Droplets, Egg, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
   const nextPeriodDate = addDays(periodStartDate, cycleLength);
@@ -19,38 +20,34 @@ const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
 };
 
 const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number) => {
-  // Check if date is within period
+  // Check if date is within period (menstruation phase)
   if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
-    return "period";
+    return "menstruation";
   }
   
-  // Check if date is the day before next period (should be luteal phase)
-  const nextPeriodDate = addDays(periodStart, cycleLength);
-  if (isSameDay(date, subDays(nextPeriodDate, 1))) {
-    return "luteal";
-  }
+  // Calculate phase boundaries similar to FertilityChart
+  const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
+  const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 2);
+  // Extend ovulation phase to include day 22 as shown in the fertility chart
+  const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 3); // Changed from +1 to +3
+  const cycleEnd = addDays(periodStart, cycleLength - 1);
   
-  const fertilityWindow = getFertilityWindow(periodStart, cycleLength);
-  
-  // Check if date is within fertility window
-  if (isWithinInterval(date, { start: fertilityWindow.start, end: fertilityWindow.end })) {
-    return "fertility";
-  }
-  
-  // Check if date is ovulation day
-  if (isSameDay(date, fertilityWindow.ovulation)) {
+  // Check if date is in ovulation phase
+  if (date >= ovulationStart && date < lutealStart) {
     return "ovulation";
   }
   
   // Check if date is in luteal phase
-  if (isWithinInterval(date, { 
-    start: addDays(fertilityWindow.ovulation, 1), 
-    end: subDays(nextPeriodDate, 2) // End one day before the day before next period
-  })) {
+  if (date >= lutealStart && date <= cycleEnd) {
     return "luteal";
   }
   
-  // If none of the above, it's follicular phase
+  // Check if date is in follicular phase
+  if (date >= follicularStart && date < ovulationStart) {
+    return "follicular";
+  }
+  
+  // Default fallback
   return "follicular";
 };
 
@@ -68,6 +65,7 @@ export default function PeriodDashboard() {
     fertility: { start: Date; end: Date };
     ovulation: Date;
   }>>([]);
+  const [showNextPeriodAlert, setShowNextPeriodAlert] = useState(false);
 
   useEffect(() => {
     // Get user data from localStorage
@@ -128,7 +126,12 @@ export default function PeriodDashboard() {
         setPeriodLength(parseInt(storedPeriodLength));
       }
     }
-  }, []);
+
+    if (periodStartDate && nextPeriodDate) {
+      const daysToNextPeriod = differenceInDays(nextPeriodDate, new Date());
+      setShowNextPeriodAlert(daysToNextPeriod === 1);
+    }
+  }, [periodStartDate, nextPeriodDate]);
 
   const getDayClassName = (date: Date) => {
     if (!periodStartDate) return "";
@@ -143,14 +146,14 @@ export default function PeriodDashboard() {
     );
     
     switch (phase) {
-      case "period":
-        return "bg-softpink/30 text-foreground hover:bg-softpink/50 rounded-md";
+      case "menstruation":
+        return "bg-[#ff4d6d]/30 text-foreground hover:bg-[#ff4d6d]/50 rounded-md";
       case "ovulation":
-        return "bg-calmteal hover:bg-calmteal/80 text-white rounded-md";
-      case "fertility":
-        return "bg-calmteal/30 text-foreground hover:bg-calmteal/50 rounded-md";
+        return "bg-[#34D399] hover:bg-[#34D399]/80 text-white rounded-md";
+      case "follicular":
+        return "bg-[#60A5FA]/30 text-foreground hover:bg-[#60A5FA]/50 rounded-md";
       case "luteal":
-        return "bg-lavender/20 text-foreground hover:bg-lavender/40 rounded-md";
+        return "bg-[#9b87f5]/20 text-foreground hover:bg-[#9b87f5]/40 rounded-md";
       default:
         return "";
     }
@@ -158,6 +161,15 @@ export default function PeriodDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Pop-up alert if next period is tomorrow */}
+      {showNextPeriodAlert && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Upcoming Period</AlertTitle>
+          <AlertDescription>
+            Your next period is expected to start <b>tomorrow</b>. Please prepare and update your period details if needed.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="text-center md:text-left">
         <h1 className="text-4xl font-heading font-bold mb-1 text-lavender">Hello, {userName}</h1>
       </div>
@@ -179,15 +191,29 @@ export default function PeriodDashboard() {
             selected={new Date()}
             className="rounded-md border-0"
             modifiers={{
-              period: nextThreeCycles.map(cycle => ({ from: cycle.periodStart, to: cycle.periodEnd })),
-              fertility: nextThreeCycles.map(cycle => ({ from: cycle.fertility.start, to: cycle.fertility.end })),
-              ovulation: nextThreeCycles.map(cycle => cycle.ovulation),
+              menstruation: nextThreeCycles.map(cycle => ({ from: cycle.periodStart, to: cycle.periodEnd })),
+              follicular: nextThreeCycles.map(cycle => {
+                const follicularStart = addDays(cycle.periodStart, differenceInDays(cycle.periodEnd, cycle.periodStart) + 1);
+                const ovulationStart = addDays(cycle.periodStart, Math.floor(cycleLength / 2) - 2);
+                return { from: follicularStart, to: ovulationStart };
+              }),
+              ovulation: nextThreeCycles.map(cycle => {
+                const ovulationStart = addDays(cycle.periodStart, Math.floor(cycleLength / 2) - 2);
+                const lutealStart = addDays(cycle.periodStart, Math.floor(cycleLength / 2) + 2);
+                return { from: ovulationStart, to: subDays(lutealStart, 1) };
+              }),
+              luteal: nextThreeCycles.map(cycle => {
+                const lutealStart = addDays(cycle.periodStart, Math.floor(cycleLength / 2) + 2);
+                const cycleEnd = addDays(cycle.periodStart, cycleLength - 1);
+                return { from: lutealStart, to: cycleEnd };
+              }),
               today: new Date()
             }}
             modifiersClassNames={{
-              period: "bg-softpink/30 text-foreground hover:bg-softpink/50 rounded-md",
-              fertility: "bg-calmteal/30 text-foreground hover:bg-calmteal/50 rounded-md",
-              ovulation: "bg-calmteal hover:bg-calmteal/80 text-white rounded-md",
+              menstruation: "bg-[#ff4d6d]/30 text-foreground hover:bg-[#ff4d6d]/50 rounded-md",
+              follicular: "bg-[#60A5FA]/30 text-foreground hover:bg-[#60A5FA]/50 rounded-md",
+              ovulation: "bg-[#34D399] hover:bg-[#34D399]/80 text-white rounded-md",
+              luteal: "bg-[#9b87f5]/20 text-foreground hover:bg-[#9b87f5]/40 rounded-md",
               today: "border border-primary font-bold"
             }}
             styles={{
@@ -197,10 +223,10 @@ export default function PeriodDashboard() {
         </div>
         
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-          <div className="flex flex-col items-center justify-center bg-softpink/10 p-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-1 text-softpink mb-1">
+          <div className="flex flex-col items-center justify-center bg-[#ff4d6d]/10 p-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-1 text-[#ff4d6d] mb-1">
               <Droplets className="h-4 w-4" />
-              <span className="text-sm font-medium">Period</span>
+              <span className="text-sm font-medium">Menstruation</span>
             </div>
             {nextPeriodDate && (
               <p className="text-xs text-center">
@@ -211,21 +237,22 @@ export default function PeriodDashboard() {
             )}
           </div>
           
-          <div className="flex flex-col items-center justify-center bg-calmteal/10 p-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-1 text-calmteal mb-1">
+          <div className="flex flex-col items-center justify-center bg-[#60A5FA]/10 p-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-1 text-[#60A5FA] mb-1">
               <Egg className="h-4 w-4" />
-              <span className="text-sm font-medium">Fertility</span>
+              <span className="text-sm font-medium">Follicular</span>
             </div>
             {periodStartDate && (
               <p className="text-xs text-center">
                 {(() => {
-                  const fertility = getFertilityWindow(periodStartDate, cycleLength);
+                  const follicularStart = addDays(periodStartDate, periodLength);
+                  const ovulationStart = addDays(periodStartDate, Math.floor(cycleLength / 2) - 2);
                   return (
                     <>
-                      Fertile window
+                      After period ends
                       <br />
                       <span className="font-semibold">
-                        {format(fertility.start, "MMM d")} - {format(fertility.end, "MMM d")}
+                        {format(follicularStart, "MMM d")} - {format(ovulationStart, "MMM d")}
                       </span>
                     </>
                   );
@@ -234,21 +261,22 @@ export default function PeriodDashboard() {
             )}
           </div>
 
-          <div className="flex flex-col items-center justify-center bg-calmteal/20 p-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-1 text-calmteal mb-1">
+          <div className="flex flex-col items-center justify-center bg-[#34D399]/10 p-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-1 text-[#34D399] mb-1">
               <Egg className="h-4 w-4" />
               <span className="text-sm font-medium">Ovulation</span>
             </div>
             {periodStartDate && (
               <p className="text-xs text-center">
                 {(() => {
-                  const fertility = getFertilityWindow(periodStartDate, cycleLength);
+                  const ovulationStart = addDays(periodStartDate, Math.floor(cycleLength / 2) - 2);
+                  const lutealStart = addDays(periodStartDate, Math.floor(cycleLength / 2) + 2);
                   return (
                     <>
-                      Ovulation day
+                      Most fertile days
                       <br />
                       <span className="font-semibold">
-                        {format(fertility.ovulation, "MMM d")}
+                        {format(ovulationStart, "MMM d")} - {format(subDays(lutealStart, 1), "MMM d")}
                       </span>
                     </>
                   );
@@ -257,23 +285,22 @@ export default function PeriodDashboard() {
             )}
           </div>
           
-          <div className="flex flex-col items-center justify-center bg-lavender/10 p-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-1 text-lavender mb-1">
+          <div className="flex flex-col items-center justify-center bg-[#9b87f5]/10 p-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-1 text-[#9b87f5] mb-1">
               <Heart className="h-4 w-4" />
               <span className="text-sm font-medium">Luteal Phase</span>
             </div>
             {periodStartDate && (
               <p className="text-xs text-center">
                 {(() => {
-                  const fertility = getFertilityWindow(periodStartDate, cycleLength);
-                  const lutealStart = addDays(fertility.ovulation, 1);
-                  const lutealEnd = subDays(addDays(periodStartDate, cycleLength), 1);
+                  const lutealStart = addDays(periodStartDate, Math.floor(cycleLength / 2) + 2);
+                  const cycleEnd = addDays(periodStartDate, cycleLength - 1);
                   return (
                     <>
                       After ovulation
                       <br />
                       <span className="font-semibold">
-                        {format(lutealStart, "MMM d")} - {format(lutealEnd, "MMM d")}
+                        {format(lutealStart, "MMM d")} - {format(cycleEnd, "MMM d")}
                       </span>
                     </>
                   );
@@ -338,43 +365,41 @@ export default function PeriodDashboard() {
                   let phaseInfo = {
                     name: "",
                     description: "",
-                    color: ""
+                    color: "",
+                    fertility: ""
                   };
                   
                   switch (phase) {
-                    case "period":
+                    case "menstruation":
                       phaseInfo = {
-                        name: "Menstrual Phase",
-                        description: "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement.",
-                        color: "bg-softpink/10 text-softpink"
+                        name: "Menstruation Phase",
+                        description: "The beginning of your cycle when your uterine lining sheds. Focus on self-care and rest.",
+                        color: "bg-[#ff4d6d]/10 text-[#ff4d6d]",
+                        fertility: "0% (Very low chance of conception)"
                       };
                       break;
                     case "follicular":
                       phaseInfo = {
                         name: "Follicular Phase",
-                        description: "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!",
-                        color: "bg-yellow-100 text-yellow-700"
-                      };
-                      break;
-                    case "fertility":
-                      phaseInfo = {
-                        name: "Fertile Window",
-                        description: "This is when pregnancy is most likely to occur. You may notice increased energy and libido.",
-                        color: "bg-calmteal/10 text-calmteal"
+                        description: "After your period ends, follicles in your ovaries begin to mature. Your energy is increasing.",
+                        color: "bg-[#60A5FA]/10 text-[#60A5FA]",
+                        fertility: "0-70% (Gradually increasing)"
                       };
                       break;
                     case "ovulation":
                       phaseInfo = {
-                        name: "Ovulation Day",
-                        description: "An egg is released and can be fertilized for about 24 hours. You may feel most energetic today.",
-                        color: "bg-calmteal/20 text-calmteal"
+                        name: "Ovulation Phase",
+                        description: "Your most fertile window. An egg is released and can be fertilized for about 24 hours.",
+                        color: "bg-[#34D399]/10 text-[#34D399]",
+                        fertility: "80-95% (Your most fertile window)"
                       };
                       break;
                     case "luteal":
                       phaseInfo = {
                         name: "Luteal Phase",
-                        description: "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses.",
-                        color: "bg-lavender/10 text-lavender"
+                        description: "After ovulation, the corpus luteum releases progesterone. You might experience PMS symptoms.",
+                        color: "bg-[#9b87f5]/10 text-[#9b87f5]",
+                        fertility: "5% (Very low chance of conception)"
                       };
                       break;
                   }
@@ -382,7 +407,14 @@ export default function PeriodDashboard() {
                   return (
                     <div className={cn("p-4 rounded-lg", phaseInfo.color)}>
                       <p className="font-bold mb-1">{phaseInfo.name}</p>
-                      <p className="text-sm">{phaseInfo.description}</p>
+                      <p className="text-sm mb-2">{phaseInfo.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: phaseInfo.color.includes("#ff4d6d") ? "#ff4d6d" : 
+                          phaseInfo.color.includes("#60A5FA") ? "#60A5FA" : 
+                          phaseInfo.color.includes("#34D399") ? "#34D399" : 
+                          "#9b87f5" }} />
+                        <p className="text-xs font-medium">Fertility: {phaseInfo.fertility}</p>
+                      </div>
                     </div>
                   );
                 })()}
