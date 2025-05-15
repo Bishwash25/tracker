@@ -185,11 +185,12 @@ export default function PeriodDashboard() {
           </div>
         </div>
         
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-2 shadow-sm">
+        {/* Responsive wrapper for calendar */}
+        <div className="calendar-mobile-fix bg-white/80 backdrop-blur-sm rounded-lg p-2 shadow-sm overflow-x-auto">
           <Calendar
             mode="single"
             selected={new Date()}
-            className="rounded-md border-0"
+            className="rounded-md border-0 min-w-[320px]"
             modifiers={{
               menstruation: nextThreeCycles.map(cycle => ({ from: cycle.periodStart, to: cycle.periodEnd })),
               follicular: nextThreeCycles.map(cycle => {
