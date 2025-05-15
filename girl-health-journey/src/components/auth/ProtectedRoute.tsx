@@ -29,9 +29,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // After profile is loaded, redirect based on onboarding status
-  if (isNewUser === true && location.pathname !== "/terms" && location.pathname !== "/period-start") {
-    // New user: force onboarding
-    return <Navigate to="/terms" replace />;
+  if (isNewUser === true) {
+    // Check if terms are accepted
+    const termsAccepted = localStorage.getItem("termsAccepted") === "true";
+    const periodStartDate = localStorage.getItem("periodStartDate");
+
+    if (!termsAccepted && location.pathname !== "/terms") {
+      // Must accept terms first
+      return <Navigate to="/terms" replace />;
+    }
+    if (termsAccepted && !periodStartDate && location.pathname !== "/period-start") {
+      // After terms, must fill period start info
+      return <Navigate to="/period-start" replace />;
+    }
+    if (termsAccepted && periodStartDate && location.pathname !== "/period-dashboard") {
+      // After period start info, go to dashboard
+      return <Navigate to="/period-dashboard" replace />;
+    }
   }
   if (isNewUser === false && (location.pathname === "/terms" || location.pathname === "/period-start")) {
     // Existing user: skip onboarding
