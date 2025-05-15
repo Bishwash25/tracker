@@ -833,7 +833,7 @@ export default function PeriodTracking() {
                       const lutealStart = Math.floor(cycleLength / 2) + 1;
                       const follicularDays = Math.max(0, ovulationStart - periodLength + 1); // inclusive
                       const ovulationDays = Math.max(0, lutealStart - ovulationStart); // typically 5-6 days
-                      const lutealDays = Math.max(0, cycleLength - lutealStart);
+                      const lutealDays = Math.max(0, cycleLength - lutealStart - 1); // Subtract 1 to fix total days
                       return (
                         <>
                           <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30">

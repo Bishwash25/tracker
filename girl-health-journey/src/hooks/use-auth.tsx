@@ -11,6 +11,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loadingUserData: boolean; // Add loading state to context
+  profileLoaded: boolean; // New: true if user profile (Firestore) has been loaded
+  isNewUser: boolean | null; // New: null=unknown, true=new, false=existing
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +21,8 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => false,
   logout: () => {},
   loadingUserData: false,
+  profileLoaded: false,
+  isNewUser: null,
 });
 
 // Custom event for notifying components about successful auth
@@ -28,10 +32,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loadingUserData, setLoadingUserData] = useState(false); // Add loading state
+  const [profileLoaded, setProfileLoaded] = useState(false); // New
+  const [isNewUser, setIsNewUser] = useState<boolean | null>(null); // New
 
   // Function to fetch user data from Firestore and sync to localStorage
   const fetchUserDataFromFirestore = async (userId: string) => {
     setLoadingUserData(true); // Start loading
+    setProfileLoaded(false); // Reset profileLoaded
     const start = Date.now();
     try {
       console.log("Fetching user data from Firestore for:", userId);
@@ -60,6 +67,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Fetch additional user-specific collections
         await syncUserCollections(userId);
         
+        // New: check for onboarding/profile flag
+        const completed = Boolean(firestoreData.profileCompleted || firestoreData.periodStartDate || localStorage.getItem("periodStartDate"));
+        setIsNewUser(!completed);
+        setProfileLoaded(true);
+
         // Dispatch custom event to notify components that user data is available
         const event = new CustomEvent(USER_AUTHENTICATED_EVENT, { 
           detail: { 
@@ -75,11 +87,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoadingUserData(false);
         return true;
       } else {
+        // No user doc: treat as new user
+        setIsNewUser(true);
+        setProfileLoaded(true);
         setLoadingUserData(false);
         console.log("No user document found in Firestore for:", userId);
         return false;
       }
     } catch (error) {
+      setIsNewUser(null);
+      setProfileLoaded(true);
       setLoadingUserData(false);
       console.error("Error fetching user data from Firestore:", error);
       return false;
@@ -161,6 +178,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // If we have a user from localStorage, try to fetch their Firestore data
       if (storedUser.uid) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         fetchUserDataFromFirestore(storedUser.uid)
           .then(success => {
             if (success) {
@@ -186,6 +204,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         saveToStorage("user", userData);
         
         // When a user authenticates, fetch their data from Firestore
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         fetchUserDataFromFirestore(firebaseUser.uid)
           .then(success => {
             if (success) {
@@ -196,10 +215,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Only clear if we don't have a stored user
         setUser(null);
         setIsAuthenticated(false);
+        setProfileLoaded(false);
+        setIsNewUser(null);
       }
     });
     
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -269,15 +291,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Just update the authentication state
     setUser(null);
     setIsAuthenticated(false);
+    setProfileLoaded(false);
+    setIsNewUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, loadingUserData }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, loadingUserData, profileLoaded, isNewUser }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-export default useAuth;
