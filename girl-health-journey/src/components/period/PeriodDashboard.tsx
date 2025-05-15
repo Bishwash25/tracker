@@ -269,7 +269,8 @@ export default function PeriodDashboard() {
             {periodStartDate && (
               <p className="text-xs text-center">
                 {(() => {
-                  const ovulationStart = addDays(periodStartDate, Math.floor(cycleLength / 2) - 2);
+                  // Fix: Match ovulation phase with calendar (start from Math.floor(cycleLength / 2) - 1)
+                  const ovulationStart = addDays(periodStartDate, Math.floor(cycleLength / 2) - 1);
                   const lutealStart = addDays(periodStartDate, Math.floor(cycleLength / 2) + 2);
                   return (
                     <>

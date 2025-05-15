@@ -4,7 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { Skeleton } from "@/components/ui/skeleton";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { initializePersistentStorage } from "@/lib/storage-utils";
@@ -57,12 +58,23 @@ const App = () => {
     };
   }, []);
 
+  const { loadingUserData } = useAuth();
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          {/* Loading overlay after login and while fetching user data */}
+          {loadingUserData && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+              <div className="flex flex-col items-center">
+                <Skeleton className="h-16 w-16 rounded-full mb-4" />
+                <span className="text-white text-lg animate-pulse">Loading your data...</span>
+              </div>
+            </div>
+          )}
           <BrowserRouter>
             <Routes>
               {/* Authentication Routes */}

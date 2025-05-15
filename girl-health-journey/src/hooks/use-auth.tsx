@@ -10,6 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  loadingUserData: boolean; // Add loading state to context
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   login: async () => false,
   logout: () => {},
+  loadingUserData: false,
 });
 
 // Custom event for notifying components about successful auth
@@ -25,9 +27,12 @@ export const USER_AUTHENTICATED_EVENT = "user_authenticated";
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loadingUserData, setLoadingUserData] = useState(false); // Add loading state
 
   // Function to fetch user data from Firestore and sync to localStorage
   const fetchUserDataFromFirestore = async (userId: string) => {
+    setLoadingUserData(true); // Start loading
+    const start = Date.now();
     try {
       console.log("Fetching user data from Firestore for:", userId);
       const userDocRef = doc(db, "users", userId);
@@ -64,12 +69,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         window.dispatchEvent(event);
         
+        // Ensure loading spinner is visible for at least 500ms, max 1s
+        const elapsed = Date.now() - start;
+        await new Promise(res => setTimeout(res, Math.max(500 - elapsed, 0)));
+        setLoadingUserData(false);
         return true;
       } else {
+        setLoadingUserData(false);
         console.log("No user document found in Firestore for:", userId);
         return false;
       }
     } catch (error) {
+      setLoadingUserData(false);
       console.error("Error fetching user data from Firestore:", error);
       return false;
     }
@@ -192,12 +203,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // In a real app, you would make an API call here
-    // For this demo, we'll just simulate a successful login
-    
+    setLoadingUserData(true); // Start loading
+    const start = Date.now();
     try {
       // Simple validation
       if (!email || !password) {
+        setLoadingUserData(false);
         return false;
       }
 
@@ -211,6 +222,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await fetchUserDataFromFirestore(userCredential.user.uid);
         }
         
+        // Ensure loading spinner is visible for at least 500ms, max 1s
+        const elapsed = Date.now() - start;
+        await new Promise(res => setTimeout(res, Math.max(500 - elapsed, 0)));
+        setLoadingUserData(false);
         return true;
       } catch (error) {
         console.error("Firebase auth error:", error);
@@ -230,8 +245,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthenticated(true);
       saveToStorage("user", newUser);
       
+      // Ensure loading spinner is visible for at least 500ms, max 1s
+      const elapsed = Date.now() - start;
+      await new Promise(res => setTimeout(res, Math.max(500 - elapsed, 0)));
+      setLoadingUserData(false);
       return true;
     } catch (error) {
+      setLoadingUserData(false);
       console.error("Login error:", error);
       return false;
     }
@@ -252,7 +272,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, loadingUserData }}>
       {children}
     </AuthContext.Provider>
   );

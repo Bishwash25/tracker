@@ -823,19 +823,35 @@ export default function PeriodTracking() {
               
               <div className="mt-4">
                 <h3 className="font-semibold mb-2">Cycle At A Glance</h3>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30">
-                    Menstruation: {periodLength} days
-                  </Badge>
-                  <Badge variant="outline" className="bg-[#60A5FA]/20 text-[#60A5FA] border-[#60A5FA]/30">
-                    Follicular: ~7 days
-                  </Badge>
-                  <Badge variant="outline" className="bg-[#34D399]/20 text-[#34D399] border-[#34D399]/30">
-                    Ovulation: ~6 days
-                  </Badge>
-                  <Badge variant="outline" className="bg-[#9b87f5]/20 text-[#9b87f5] border-[#9b87f5]/30">
-                    Luteal: ~14 days
-                  </Badge>
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex whitespace-nowrap gap-2 min-w-max">
+                    {/* Calculate phase lengths to match FertilityChart */}
+                    {(() => {
+                      // Calculate phase boundaries to match FertilityChart
+                      const menstruationDays = periodLength;
+                      const ovulationStart = Math.floor(cycleLength / 2) - 2;
+                      const lutealStart = Math.floor(cycleLength / 2) + 1;
+                      const follicularDays = Math.max(0, ovulationStart - periodLength + 1); // inclusive
+                      const ovulationDays = Math.max(0, lutealStart - ovulationStart); // typically 5-6 days
+                      const lutealDays = Math.max(0, cycleLength - lutealStart);
+                      return (
+                        <>
+                          <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30">
+                            Menstruation: {menstruationDays} days
+                          </Badge>
+                          <Badge variant="outline" className="bg-[#60A5FA]/20 text-[#60A5FA] border-[#60A5FA]/30">
+                            Follicular: ~{follicularDays} days
+                          </Badge>
+                          <Badge variant="outline" className="bg-[#34D399]/20 text-[#34D399] border-[#34D399]/30">
+                            Ovulation: ~{ovulationDays} days
+                          </Badge>
+                          <Badge variant="outline" className="bg-[#9b87f5]/20 text-[#9b87f5] border-[#9b87f5]/30">
+                            Luteal: ~{lutealDays} days
+                          </Badge>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
                 
                 {periodStartDate && (
