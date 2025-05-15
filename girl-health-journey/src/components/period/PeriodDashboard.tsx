@@ -24,29 +24,29 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
   if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
     return "menstruation";
   }
-  
-  // Calculate phase boundaries similar to FertilityChart
+
+  // Calculate phase boundaries
   const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
   const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 2);
-  // Extend ovulation phase to include day 22 as shown in the fertility chart
-  const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 3); // Changed from +1 to +3
-  const cycleEnd = addDays(periodStart, cycleLength - 1);
-  
+  // Luteal phase starts after ovulation and ends the day before next period
+  const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 2);
+  const cycleEnd = addDays(periodStart, cycleLength - 1); // The day before next period
+
   // Check if date is in ovulation phase
   if (date >= ovulationStart && date < lutealStart) {
     return "ovulation";
   }
-  
+
   // Check if date is in luteal phase
   if (date >= lutealStart && date <= cycleEnd) {
     return "luteal";
   }
-  
+
   // Check if date is in follicular phase
   if (date >= follicularStart && date < ovulationStart) {
     return "follicular";
   }
-  
+
   // Default fallback
   return "follicular";
 };
@@ -361,59 +361,57 @@ export default function PeriodDashboard() {
                   const today = new Date();
                   const endDate = periodEndDate || addDays(periodStartDate, periodLength - 1);
                   const phase = getCyclePhase(today, periodStartDate, endDate, cycleLength);
-                  
+
                   let phaseInfo = {
                     name: "",
                     description: "",
                     color: "",
                     fertility: ""
                   };
-                  
+
                   switch (phase) {
                     case "menstruation":
                       phaseInfo = {
                         name: "Menstruation Phase",
-                        description: "The beginning of your cycle when your uterine lining sheds. Focus on self-care and rest.",
-                        color: "bg-[#ff4d6d]/10 text-[#ff4d6d]",
+                        description: "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement.",
+                        color: "bg-[#ff4d6d]/20 text-[#ff4d6d]",
                         fertility: "0% (Very low chance of conception)"
                       };
                       break;
                     case "follicular":
                       phaseInfo = {
                         name: "Follicular Phase",
-                        description: "After your period ends, follicles in your ovaries begin to mature. Your energy is increasing.",
-                        color: "bg-[#60A5FA]/10 text-[#60A5FA]",
+                        description: "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!",
+                        color: "bg-[#60A5FA]/20 text-[#60A5FA]",
                         fertility: "0-70% (Gradually increasing)"
                       };
                       break;
                     case "ovulation":
                       phaseInfo = {
                         name: "Ovulation Phase",
-                        description: "Your most fertile window. An egg is released and can be fertilized for about 24 hours.",
-                        color: "bg-[#34D399]/10 text-[#34D399]",
+                        description: "This is when pregnancy is most likely to occur. You may notice increased energy and libido.",
+                        color: "bg-[#34D399]/20 text-[#34D399]",
                         fertility: "80-95% (Your most fertile window)"
                       };
                       break;
                     case "luteal":
                       phaseInfo = {
                         name: "Luteal Phase",
-                        description: "After ovulation, the corpus luteum releases progesterone. You might experience PMS symptoms.",
-                        color: "bg-[#9b87f5]/10 text-[#9b87f5]",
+                        description: "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses.",
+                        color: "bg-[#9b87f5]/20 text-[#9b87f5]",
                         fertility: "5% (Very low chance of conception)"
                       };
                       break;
                   }
-                  
+
                   return (
                     <div className={cn("p-4 rounded-lg", phaseInfo.color)}>
-                      <p className="font-bold mb-1">{phaseInfo.name}</p>
+                      <h3 className="font-bold text-lg mb-2">{phaseInfo.name}</h3>
                       <p className="text-sm mb-2">{phaseInfo.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: phaseInfo.color.includes("#ff4d6d") ? "#ff4d6d" : 
-                          phaseInfo.color.includes("#60A5FA") ? "#60A5FA" : 
-                          phaseInfo.color.includes("#34D399") ? "#34D399" : 
-                          "#9b87f5" }} />
-                        <p className="text-xs font-medium">Fertility: {phaseInfo.fertility}</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="text-xs font-medium">Fertility:</span>
+                        <Badge variant="outline" className="text-xs">{phaseInfo.fertility}</Badge>
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: phaseInfo.color.includes("#ff4d6d") ? "#ff4d6d" : phaseInfo.color.includes("#60A5FA") ? "#60A5FA" : phaseInfo.color.includes("#34D399") ? "#34D399" : "#9b87f5" }} />
                       </div>
                     </div>
                   );

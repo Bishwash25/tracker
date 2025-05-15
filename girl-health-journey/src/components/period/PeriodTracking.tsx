@@ -435,29 +435,25 @@ export default function PeriodTracking() {
     if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
       return "menstruation";
     }
-    
-    // Calculate phase boundaries similar to FertilityChart
+    // Calculate phase boundaries
     const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
     const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 2);
-    // Extend ovulation phase to include day 22 as shown in the fertility chart
-    const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 3); // Changed from +1 to +3
-    const cycleEnd = addDays(periodStart, cycleLength - 1);
-    
+    // Luteal phase starts after ovulation and ends the day before next period
+    const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 2);
+    const cycleEnd = addDays(periodStart, cycleLength - 1); // The day before next period
+
     // Check if date is in ovulation phase
     if (date >= ovulationStart && date < lutealStart) {
       return "ovulation";
     }
-    
     // Check if date is in luteal phase
     if (date >= lutealStart && date <= cycleEnd) {
       return "luteal";
     }
-    
     // Check if date is in follicular phase
     if (date >= follicularStart && date < ovulationStart) {
       return "follicular";
     }
-    
     // Default fallback
     return "follicular";
   };
