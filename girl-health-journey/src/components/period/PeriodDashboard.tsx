@@ -66,6 +66,7 @@ export default function PeriodDashboard() {
     ovulation: Date;
   }>>([]);
   const [showNextPeriodAlert, setShowNextPeriodAlert] = useState(false);
+  const [showHistoryInfo, setShowHistoryInfo] = useState(false);
 
   useEffect(() => {
     // Get user data from localStorage
@@ -131,6 +132,19 @@ export default function PeriodDashboard() {
       const daysToNextPeriod = differenceInDays(nextPeriodDate, new Date());
       setShowNextPeriodAlert(daysToNextPeriod === 1);
     }
+
+    // Check if user has any period history
+    const periodHistoryRaw = localStorage.getItem("periodHistory");
+    let hasHistory = false;
+    if (periodHistoryRaw) {
+      try {
+        const periodHistory = JSON.parse(periodHistoryRaw);
+        hasHistory = Array.isArray(periodHistory) && periodHistory.length > 0;
+      } catch (e) {
+        hasHistory = false;
+      }
+    }
+    setShowHistoryInfo(!hasHistory);
   }, [periodStartDate, nextPeriodDate]);
 
   const getDayClassName = (date: Date) => {
@@ -161,6 +175,15 @@ export default function PeriodDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Show info for new users with no period history */}
+      {showHistoryInfo && (
+        <Alert variant="info" className="mb-4">
+          <AlertTitle>Save Your Period Details</AlertTitle>
+          <AlertDescription>
+            Please click <b>Edit</b> and then <b>Save</b> button to save your Period Details into history section for making Your Record more efficient.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Pop-up alert if next period is tomorrow */}
       {showNextPeriodAlert && (
         <Alert variant="destructive" className="mb-4">
