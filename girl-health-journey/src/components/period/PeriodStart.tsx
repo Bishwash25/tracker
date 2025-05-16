@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 
 import { useNavigate } from "react-router-dom";
@@ -32,6 +31,7 @@ import {
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { usePeriodUser } from "./PeriodUserContext";
 
 // Schema for the form
 const formSchema = z.object({
@@ -48,6 +48,7 @@ export default function PeriodStart() {
   const [predictedEndDate, setPredictedEndDate] = useState<Date | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { setPeriodUserData } = usePeriodUser();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -67,6 +68,14 @@ export default function PeriodStart() {
     localStorage.setItem("periodEndDate", endDate.toISOString());
     localStorage.setItem("cycleLength", data.cycleLength);
     localStorage.setItem("periodLength", data.periodLength);
+
+    // Update context so all sidebar components update instantly
+    setPeriodUserData({
+      periodStartDate: data.periodStartDate,
+      periodEndDate: endDate,
+      cycleLength: parseInt(data.cycleLength),
+      periodLength: parseInt(data.periodLength),
+    });
 
     toast({
       title: "Information saved",

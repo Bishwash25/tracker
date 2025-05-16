@@ -42,8 +42,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       // After terms, must fill period start info
       return <Navigate to="/period-start" replace />;
     }
-    if (termsAccepted && periodStartDate && location.pathname !== "/period-dashboard") {
-      // After period start info, go to dashboard
+    if (
+      termsAccepted &&
+      periodStartDate &&
+      (location.pathname === "/period-start" || location.pathname === "/terms")
+    ) {
+      // After period start info, go to dashboard only if still on onboarding pages
       return <Navigate to="/period-dashboard" replace />;
     }
   }

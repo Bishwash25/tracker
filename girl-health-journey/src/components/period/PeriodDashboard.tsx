@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, Droplets, Egg, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { usePeriodUser } from "./PeriodUserContext";
 
 const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
   const nextPeriodDate = addDays(periodStartDate, cycleLength);
@@ -53,10 +54,6 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
 
 export default function PeriodDashboard() {
   const [userName, setUserName] = useState("");
-  const [periodStartDate, setPeriodStartDate] = useState<Date | null>(null);
-  const [periodEndDate, setPeriodEndDate] = useState<Date | null>(null);
-  const [cycleLength, setCycleLength] = useState(28);
-  const [periodLength, setPeriodLength] = useState(5);
   const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
   const [cycleDay, setCycleDay] = useState(0);
   const [nextThreeCycles, setNextThreeCycles] = useState<Array<{
@@ -67,6 +64,9 @@ export default function PeriodDashboard() {
   }>>([]);
   const [showNextPeriodAlert, setShowNextPeriodAlert] = useState(false);
   const [showHistoryInfo, setShowHistoryInfo] = useState(false);
+
+  // Use context for period data
+  const { periodStartDate, periodEndDate, cycleLength, periodLength } = usePeriodUser();
 
   useEffect(() => {
     // Get user data from localStorage
@@ -79,37 +79,22 @@ export default function PeriodDashboard() {
         console.error('Error parsing user data:', error);
       }
     }
-    
-    const storedPeriodStartDate = localStorage.getItem("periodStartDate");
-    const storedPeriodEndDate = localStorage.getItem("periodEndDate");
-    const storedCycleLength = localStorage.getItem("cycleLength");
-    const storedPeriodLength = localStorage.getItem("periodLength");
 
-    if (storedPeriodStartDate) {
-      const startDate = new Date(storedPeriodStartDate);
-      setPeriodStartDate(startDate);
-      
+    if (periodStartDate) {
       const today = new Date();
-      const daysSinceStart = differenceInDays(today, startDate);
+      const daysSinceStart = differenceInDays(today, periodStartDate);
       setCycleDay(daysSinceStart + 1);
-      
-      if (storedPeriodEndDate) {
-        setPeriodEndDate(new Date(storedPeriodEndDate));
-      }
-      
-      if (storedCycleLength) {
-        const cycleLen = parseInt(storedCycleLength);
-        setCycleLength(cycleLen);
-        
-        const nextPeriod = addDays(startDate, cycleLen);
+
+      if (cycleLength) {
+        const nextPeriod = addDays(periodStartDate, cycleLength);
         setNextPeriodDate(nextPeriod);
 
         const cycles = [];
         for (let i = 0; i < 3; i++) {
-          const cycleStartDate = addDays(startDate, cycleLen * i);
-          const cycleEndDate = addDays(cycleStartDate, parseInt(storedPeriodLength || "5") - 1);
-          const fertilityWindow = getFertilityWindow(cycleStartDate, cycleLen);
-          
+          const cycleStartDate = addDays(periodStartDate, cycleLength * i);
+          const cycleEndDate = addDays(cycleStartDate, periodLength - 1);
+          const fertilityWindow = getFertilityWindow(cycleStartDate, cycleLength);
+
           cycles.push({
             periodStart: cycleStartDate,
             periodEnd: cycleEndDate,
@@ -121,10 +106,6 @@ export default function PeriodDashboard() {
           });
         }
         setNextThreeCycles(cycles);
-      }
-      
-      if (storedPeriodLength) {
-        setPeriodLength(parseInt(storedPeriodLength));
       }
     }
 
@@ -145,7 +126,7 @@ export default function PeriodDashboard() {
       }
     }
     setShowHistoryInfo(!hasHistory);
-  }, [periodStartDate, nextPeriodDate]);
+  }, [periodStartDate, nextPeriodDate, cycleLength, periodLength]);
 
   const getDayClassName = (date: Date) => {
     if (!periodStartDate) return "";
@@ -177,10 +158,10 @@ export default function PeriodDashboard() {
     <div className="space-y-8">
       {/* Show info for new users with no period history */}
       {showHistoryInfo && (
-        <Alert variant="info" className="mb-4">
+        <Alert variant="default" className="mb-4">
           <AlertTitle>Save Your Period Details</AlertTitle>
           <AlertDescription>
-            Please click <b>Edit</b> and then <b>Save</b> button to save your Period Details into history section for making Your Record more efficient.
+            Please go to Tracking and  click <b>Edit</b> and then <b>Save</b> button to save your Period Details into history section for making Your Record more efficient.
           </AlertDescription>
         </Alert>
       )}
