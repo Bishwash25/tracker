@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, collection, deleteDoc, getDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
+import jsPDF from "jspdf";
 
 const flowOptions = ["Light", "Medium", "Heavy", "Very Heavy"];
 const colorOptions = ["Light Red", "Bright Red", "Dark Red", "Brown", "Black", "Pink"];
@@ -58,25 +59,18 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 // Helper function to safely format dates
-const safeFormatDate = (dateValue: any): string => {
+const safeFormatDate = (dateValue: string | Date | number | undefined | null): string => {
   try {
     if (!dateValue) return "Unknown date";
-    
-    // If it's already a Date object
     if (dateValue instanceof Date) {
       return format(dateValue, "MMM d, yyyy");
     }
-    
-    // If it's an ISO string
     if (typeof dateValue === 'string') {
       return format(parseISO(dateValue), "MMM d, yyyy");
     }
-    
-    // If it's a timestamp
     if (typeof dateValue === 'number') {
       return format(new Date(dateValue), "MMM d, yyyy");
     }
-    
     return "Invalid date";
   } catch (error) {
     console.error("Error formatting date:", error, dateValue);
@@ -149,7 +143,6 @@ export default function PeriodFlowTracker() {
       setDataFetched(false); // Always reset to force fetch
       fetchFlowRecordsFromFirestore(userId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Listen for authentication event
@@ -320,16 +313,11 @@ export default function PeriodFlowTracker() {
   };
 
   // Function to safely serialize a record for storage
-  const safeSerializeRecord = (record: FormValues & { id: string }) => {
-    // Create a copy to avoid modifying the original
+  const safeSerializeRecord = (record: FormValues & { id: string }): FormValues & { id: string } => {
     const recordCopy = { ...record };
-    
-    // Ensure date is properly serialized
     if (recordCopy.date instanceof Date) {
-      // We need to cast the date to 'any' to avoid type issues with serialization
-      (recordCopy.date as any) = recordCopy.date.toISOString();
+      recordCopy.date = recordCopy.date.toISOString();
     }
-    
     return recordCopy;
   };
   
@@ -417,6 +405,7 @@ export default function PeriodFlowTracker() {
     }
   };
 
+  // Download PDF in detailed format like PeriodHistory
   const handleDownloadPDF = () => {
     if (savedRecords.length === 0) {
       toast({
@@ -427,118 +416,84 @@ export default function PeriodFlowTracker() {
       return;
     }
 
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({
-        title: "Download failed",
-        description: "Please allow popups to download your records",
-        variant: "destructive",
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      let yPos = 20;
+
+      // Add title
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Period Flow Records', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Add current date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated on: ${format(new Date(), 'yyyy-MM-dd')}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Detailed flow records (vertical, one per block)
+      const sortedRecords = [...savedRecords].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      sortedRecords.forEach((record, idx) => {
+        if (yPos > 260) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Record #${sortedRecords.length - idx}`, margin, yPos);
+        yPos += 7;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Date: ${safeFormatDate(record.date)}`, margin, yPos);
+        yPos += 7;
+        doc.text(`Period Day: ${record.periodDay || '-'}`, margin, yPos);
+        yPos += 7;
+        doc.text(`Flow: ${record.flow || '-'}`, margin, yPos);
+        yPos += 7;
+        doc.text(`Color: ${record.color || '-'}`, margin, yPos);
+        yPos += 7;
+        doc.text(`Pain Level: ${record.painLevel ?? '-'} /10`, margin, yPos);
+        yPos += 7;
+        doc.text(`Pads/Tampons Changed: ${record.padsChanged ?? '-'}`, margin, yPos);
+        yPos += 7;
+        if (record.bodyTemperature) {
+          doc.text(`Body Temperature: ${record.bodyTemperature}${record.temperatureUnit || '°C'}`, margin, yPos);
+          yPos += 7;
+        }
+        if (record.notes) {
+          doc.text('Notes:', margin, yPos);
+          yPos += 5;
+          const noteLines = doc.splitTextToSize(record.notes, pageWidth - (margin * 2));
+          for (let i = 0; i < noteLines.length; i++) {
+            if (yPos > 270) {
+              doc.addPage();
+              yPos = 20;
+            }
+            doc.text(noteLines[i], margin, yPos);
+            yPos += 5;
+          }
+        }
+        yPos += 10;
       });
-      return;
+
+      // Save the PDF
+      const fileName = `period-flow-records-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(fileName);
+      toast({
+        title: "PDF Downloaded",
+        description: `Your flow records have been saved as ${fileName}`,
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Failed to generate PDF",
+        description: "Please try again.",
+        variant: "destructive"
+      });
     }
-
-    // Create HTML content for the PDF
-    const sortedRecords = [...savedRecords].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Period Flow Records</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              color: #333;
-            }
-            h1 {
-              color: #7e69ab;
-              text-align: center;
-              margin-bottom: 20px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f5f5f5;
-              font-weight: bold;
-            }
-            tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 20px;
-            }
-            .date {
-              color: #666;
-              font-size: 14px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Period Flow Records</h1>
-            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Day</th>
-                <th>Flow</th>
-                <th>Color</th>
-                <th>Pain Level</th>
-                <th>Pads/Tampons</th>
-                ${sortedRecords.some(record => record.bodyTemperature) ? '<th>Temperature</th>' : ''}
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedRecords.map(record => `
-                <tr>
-                  <td>${safeFormatDate(record.date)}</td>
-                  <td>${record.periodDay}</td>
-                  <td>${record.flow}</td>
-                  <td>${record.color}</td>
-                  <td>${record.painLevel}/10</td>
-                  <td>${record.padsChanged}</td>
-                  ${record.bodyTemperature ? `<td>${record.bodyTemperature}${record.temperatureUnit}</td>` : 
-                    sortedRecords.some(r => r.bodyTemperature) ? '<td>-</td>' : ''}
-                  <td>${record.notes || "-"}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    // Write the HTML content to the new window
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-
-    // Wait for content to load then print
-    printWindow.onload = function() {
-      printWindow.print();
-      printWindow.close();
-    };
-
-    toast({
-      title: "Download started",
-      description: "Your flow records are being prepared for download",
-    });
   };
 
   return (

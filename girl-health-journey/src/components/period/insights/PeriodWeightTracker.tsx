@@ -26,6 +26,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, deleteDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
+import jsPDF from "jspdf";
 
 interface WeightRecord {
   id: string;
@@ -337,6 +338,7 @@ export default function PeriodWeightTracker() {
     }
   };
 
+  // Download PDF directly using jsPDF (like PeriodHistory)
   const handleDownloadRecords = () => {
     if (records.length === 0) {
       toast({
@@ -347,107 +349,62 @@ export default function PeriodWeightTracker() {
       return;
     }
 
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({
-        title: "Download failed",
-        description: "Please allow popups to download your records",
-        variant: "destructive",
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      let yPos = 20;
+
+      // Add title
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Period Weight Records', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Add current date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated on: ${format(new Date(), 'yyyy-MM-dd')}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Table header
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Date', margin, yPos);
+      doc.text('Weight', margin + 50, yPos);
+      doc.text('Note', margin + 90, yPos);
+      yPos += 8;
+      doc.setFont('helvetica', 'normal');
+
+      // Table rows
+      const sortedRecords = [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      sortedRecords.forEach((record) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(format(new Date(record.date), 'MMM d, yyyy'), margin, yPos);
+        doc.text(String(record.weight), margin + 50, yPos);
+        const noteLines = doc.splitTextToSize(record.note || '-', pageWidth - (margin + 90) - 10);
+        doc.text(noteLines, margin + 90, yPos);
+        yPos += Math.max(8, noteLines.length * 6);
       });
-      return;
+
+      // Save the PDF
+      const fileName = `period-weight-records-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(fileName);
+      toast({
+        title: "PDF Downloaded",
+        description: `Your weight records have been saved as ${fileName}`,
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Failed to generate PDF",
+        description: "Please try again.",
+        variant: "destructive"
+      });
     }
-
-    // Create HTML content for the PDF
-    const sortedRecords = [...records].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Period Weight Records</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              color: #333;
-            }
-            h1 {
-              color: #7e69ab;
-              text-align: center;
-              margin-bottom: 20px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f5f5f5;
-              font-weight: bold;
-            }
-            tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 20px;
-            }
-            .date {
-              color: #666;
-              font-size: 14px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Period Weight Records</h1>
-            <div class="date">Generated on: ${format(new Date(), "MMMM d, yyyy")}</div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Weight</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedRecords.map(record => `
-                <tr>
-                  <td>${format(new Date(record.date), "MMMM d, yyyy")}</td>
-                  <td>${record.weight}</td>
-                  <td>${record.note || "-"}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    // Write the HTML content to the new window
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-
-    // Wait for content to load then print
-    printWindow.onload = function() {
-      printWindow.print();
-      printWindow.close();
-    };
-
-    toast({
-      title: "Download started",
-      description: "Your weight records are being prepared for download",
-    });
   };
 
   const chartData = records
