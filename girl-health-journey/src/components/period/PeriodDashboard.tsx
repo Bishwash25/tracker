@@ -28,7 +28,7 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
 
   // Calculate phase boundaries
   const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
-  const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 2);
+  const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 1); // Adjusted to start one day later
   // Luteal phase starts after ovulation and ends the day before next period
   const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 2);
   const cycleEnd = addDays(periodStart, cycleLength - 1); // The day before next period
