@@ -111,7 +111,7 @@ export default function PeriodDashboard() {
 
     if (periodStartDate && nextPeriodDate) {
       const daysToNextPeriod = differenceInDays(nextPeriodDate, new Date());
-      setShowNextPeriodAlert(daysToNextPeriod === 1);
+      setShowNextPeriodAlert(daysToNextPeriod === 0);
     }
 
     // Check if user has any period history
@@ -170,7 +170,7 @@ export default function PeriodDashboard() {
         <Alert variant="destructive" className="mb-4">
           <AlertTitle>Upcoming Period</AlertTitle>
           <AlertDescription>
-            Your next period is expected to start <b>tomorrow</b>. Please prepare and update your period details if needed.
+            Your next period is expected to start tomorrow. Please prepare and update your period details if needed.
           </AlertDescription>
         </Alert>
       )}
