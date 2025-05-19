@@ -29,7 +29,7 @@ export default function PeriodTracking() {
   const [periodStartDate, setPeriodStartDate] = useState<Date | null>(null);
   const [periodEndDate, setPeriodEndDate] = useState<Date | null>(null);
   const [periodLength, setPeriodLength] = useState(5);
-  const [cycleLength, setCycleLength] = useState(28);
+  const [cycleLength, setCycleLength] = useState<number | "">(28);
   const [isEditing, setIsEditing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [countdownType, setCountdownType] = useState("");
@@ -230,7 +230,7 @@ export default function PeriodTracking() {
 
   // Calculate countdown and generate chart data
   useEffect(() => {
-    if (!periodStartDate) return;
+    if (!periodStartDate || !cycleLength || typeof cycleLength !== 'number') return;
 
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
     const nextPeriodStart = addDays(periodStartDate, cycleLength);
@@ -459,7 +459,7 @@ export default function PeriodTracking() {
   };
 
   const getCurrentPhase = () => {
-    if (!periodStartDate) return "Not Set";
+    if (!periodStartDate || !cycleLength || typeof cycleLength !== 'number') return "Not Set";
     
     // Use currentTime instead of creating a new Date() to ensure consistency
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
@@ -484,7 +484,7 @@ export default function PeriodTracking() {
   
   // Function to get fertility information based on phase
   const getFertilityInfo = () => {
-    if (!periodStartDate) return "";
+    if (!periodStartDate || !cycleLength || typeof cycleLength !== 'number') return "";
     
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
     const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength);
@@ -726,10 +726,18 @@ export default function PeriodTracking() {
                       <label className="text-sm text-muted-foreground">Period cycle (days)</label>
                       <Input
                         type="number"
-                        min="21"
+                        min="18"
                         max="35"
-                        value={cycleLength}
-                        onChange={(e) => setCycleLength(parseInt(e.target.value))}
+                        value={cycleLength === "" ? "" : cycleLength}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setCycleLength("");
+                          } else {
+                            const num = parseInt(val);
+                            if (!isNaN(num)) setCycleLength(num);
+                          }
+                        }}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -767,10 +775,10 @@ export default function PeriodTracking() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Cycle Length:</span>
-                      <span className="font-medium">{cycleLength} days</span>
+                      <span className="font-medium">{typeof cycleLength === "number" ? `${cycleLength} days` : "Not set"}</span>
                     </div>
                     
-                    {periodStartDate && (
+                    {periodStartDate && typeof cycleLength === "number" && (
                       <div className="flex justify-between items-center pt-2">
                         <span className="text-sm">Next Period Expected:</span>
                         <span className="font-medium text-softpink">
@@ -826,35 +834,38 @@ export default function PeriodTracking() {
                 <div className="overflow-x-auto pb-2">
                   <div className="flex whitespace-nowrap gap-2 min-w-max">
                     {/* Calculate phase lengths to match FertilityChart */}
-                    {(() => {
-                      // Calculate phase boundaries to match FertilityChart
-                      const menstruationDays = periodLength;
-                      const ovulationStart = Math.floor(cycleLength / 2) - 2;
-                      const lutealStart = Math.floor(cycleLength / 2) + 1;
-                      const follicularDays = Math.max(0, ovulationStart - periodLength + 1); // inclusive
-                      const ovulationDays = Math.max(0, lutealStart - ovulationStart); // typically 5-6 days
-                      const lutealDays = Math.max(0, cycleLength - lutealStart - 1); // Subtract 1 to fix total days
-                      return (
-                        <>
-                          <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30">
-                            Menstruation: {menstruationDays} days
-                          </Badge>
-                          <Badge variant="outline" className="bg-[#60A5FA]/20 text-[#60A5FA] border-[#60A5FA]/30">
-                            Follicular: ~{follicularDays} days
-                          </Badge>
-                          <Badge variant="outline" className="bg-[#34D399]/20 text-[#34D399] border-[#34D399]/30">
-                            Ovulation: ~{ovulationDays} days
-                          </Badge>
-                          <Badge variant="outline" className="bg-[#9b87f5]/20 text-[#9b87f5] border-[#9b87f5]/30">
-                            Luteal: ~{lutealDays} days
-                          </Badge>
-                        </>
-                      );
-                    })()}
+                    {typeof cycleLength === "number" && typeof periodLength === "number" ? (
+                      (() => {
+                        // Calculate phase boundaries to match FertilityChart
+                        const menstruationDays = periodLength;
+                        const ovulationStart = Math.floor(cycleLength / 2) - 2;
+                        const lutealStart = Math.floor(cycleLength / 2) + 1;
+                        const follicularDays = Math.max(0, ovulationStart - periodLength + 1); // inclusive
+                        const ovulationDays = Math.max(0, lutealStart - ovulationStart); // typically 5-6 days
+                        const lutealDays = Math.max(0, cycleLength - lutealStart - 1); // Subtract 1 to fix total days
+                        return (
+                          <>
+                            <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30">
+                              Menstruation: {menstruationDays} days
+                            </Badge>
+                            <Badge variant="outline" className="bg-[#60A5FA]/20 text-[#60A5FA] border-[#60A5FA]/30">
+                              Follicular: ~{follicularDays} days
+                            </Badge>
+                            <Badge variant="outline" className="bg-[#34D399]/20 text-[#34D399] border-[#34D399]/30">
+                              Ovulation: ~{ovulationDays} days
+                            </Badge>
+                            <Badge variant="outline" className="bg-[#9b87f5]/20 text-[#9b87f5] border-[#9b87f5]/30">
+                              Luteal: ~{lutealDays} days
+                            </Badge>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-muted-foreground">Set cycle length to see phase breakdown</span>
+                    )}
                   </div>
                 </div>
-                
-                {periodStartDate && (
+                {periodStartDate && typeof cycleLength === "number" && (
                   <div className="mt-4 text-sm text-muted-foreground">
                     <p className="flex items-center gap-1">
                       <CalendarIcon className="h-3 w-3" />
