@@ -66,7 +66,7 @@ const moodParameters = [
 const dynamicSchemaFields = Object.fromEntries(
   moodParameters.map(mood => {
     const key = mood.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    return [key, z.number().min(1).max(100).default(1)];
+    return [key, z.number().min(1).max(10).default(1)];
   })
 );
 
@@ -78,6 +78,7 @@ const formSchema = z.object({
   ...dynamicSchemaFields,
   // Additional field for "Other" mood
   other_mood_description: z.string().optional(),
+  other_mood_intensity: z.number().min(1).max(10).optional(),
   notes: z.string().optional(),
 });
 
@@ -88,6 +89,7 @@ const createDefaultValues = () => {
   const defaults = {
     date: new Date(),
     other_mood_description: "",
+    other_mood_intensity: 1,
     notes: "",
   };
   
@@ -343,9 +345,9 @@ export default function MoodTracker() {
     localStorage.setItem("moodTrackingComprehensive", JSON.stringify(updatedRecords));
     
     // Save to Firebase
-    const firebaseSaveResult = await saveMoodToFirestore(newRecord);
+    const firebaseResult = await saveMoodToFirestore(newRecord);
     
-    if (firebaseSaveResult) {
+    if (firebaseResult) {
       toast.success("Mood record saved successfully.");
     } else {
       toast.success("Mood record saved ");
@@ -422,7 +424,7 @@ export default function MoodTracker() {
                 />
 
                 <div className="bg-muted/30 p-4 rounded-md">
-                  <h3 className="font-medium mb-4">Mood Parameters (intensity 1-100)</h3>
+                  <h3 className="font-medium mb-4">Mood Parameters (intensity 1-10)</h3>
                   <div className="space-y-6">
                     {moodParameters.map((mood, index) => {
                       const key = mood.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -430,7 +432,7 @@ export default function MoodTracker() {
                         <FormField
                           key={key}
                           control={form.control}
-                          name={key as any}
+                          name={key as keyof FormValues}
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between mb-2">
@@ -444,7 +446,7 @@ export default function MoodTracker() {
                               <FormControl>
                                 <Slider
                                   min={1}
-                                  max={100}
+                                  max={10}
                                   step={1}
                                   value={[field.value]}
                                   onValueChange={(vals) => field.onChange(vals[0])}
@@ -469,10 +471,36 @@ export default function MoodTracker() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-base font-medium">
-                                16. Other (describe)
+                                16. Other (describe your moods in a sentences)
                               </FormLabel>
                               <FormControl>
                                 <Input placeholder="Describe other mood if applicable" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="other_mood_intensity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between mb-2">
+                                <FormLabel className="text-base font-medium">
+                                  
+                                </FormLabel>
+                                <span className="text-sm font-semibold">
+                                  {field.value || 1}
+                                </span>
+                              </div>
+                              <FormControl>
+                                <Slider
+                                  min={1}
+                                  max={10}
+                                  step={1}
+                                  value={[field.value || 1]}
+                                  onValueChange={(vals) => field.onChange(vals[0])}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -592,7 +620,15 @@ export default function MoodTracker() {
                                 16. Other: {record.other_mood_description}
                               </div>
                               <div className="flex items-center gap-2">
-                                {/* Removed intensity indicator for "Other" */}
+                                {typeof record.other_mood_intensity === 'number' && (
+                                  <>
+                                    <div 
+                                      className="h-2 bg-lavender/30 rounded-full" 
+                                      style={{ width: `${(record.other_mood_intensity/10)*100}%` }}
+                                    />
+                                    <span className="text-xs">{record.other_mood_intensity}</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           )}

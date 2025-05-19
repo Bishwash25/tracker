@@ -578,38 +578,54 @@ export default function PeriodHistory() {
           doc.text(`Date: ${format(new Date(record.date), 'yyyy-MM-dd')}`, margin, yPos);
           yPos += 7;
 
-          doc.setFont('helvetica', 'normal');
-          if (record.other_mood_description) {
-            doc.text(`Overall Mood: ${record.other_mood_description} (${record.other_mood_intensity}/100)`, margin, yPos);
-            yPos += 7;
-          }
-
-          // Add all mood parameters with intensity values
+          // Mood Parameters (1-10)
           doc.setFont('helvetica', 'bold');
-          doc.text('Mood Parameters:', margin, yPos);
+          doc.text('Mood Parameters (1-10):', margin, yPos);
           yPos += 7;
-          
           doc.setFont('helvetica', 'normal');
-          
-          // Process each mood parameter
           moodParameters.forEach(param => {
-            // Convert parameter name to the key used in the record
             const key = param.toLowerCase().replace(/[^a-z0-9]/g, '_');
             const intensity = record[key] || 0;
-            
-            // Only include parameters with non-zero intensity
             if (intensity > 0) {
               if (yPos > 270) {
                 doc.addPage();
                 yPos = 20;
               }
-              
-              doc.text(`${param}: ${intensity}/100`, margin, yPos);
+              doc.text(`${param}: ${intensity}/10`, margin, yPos);
               yPos += 5;
             }
           });
-          
-          yPos += 5;
+
+          // Other mood section
+          if (record.other_mood_description) {
+            if (yPos > 260) {
+              doc.addPage();
+              yPos = 20;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.text('Other Mood:', margin, yPos);
+            yPos += 5;
+            doc.setFont('helvetica', 'normal');
+            // Wrap long other mood descriptions
+            const otherLines = doc.splitTextToSize(record.other_mood_description, pageWidth - (margin * 2) - 30);
+            for (let i = 0; i < otherLines.length; i++) {
+              if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+              }
+              doc.text(otherLines[i], margin + 5, yPos);
+              yPos += 5;
+            }
+            // Show intensity for other mood
+            if (typeof record.other_mood_intensity === 'number') {
+              if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+              }
+              doc.text(`Intensity: ${record.other_mood_intensity}/10`, margin + 5, yPos);
+              yPos += 5;
+            }
+          }
 
           // Add notes if present
           if (record.notes) {
@@ -617,11 +633,9 @@ export default function PeriodHistory() {
               doc.addPage();
               yPos = 20;
             }
-            
             doc.setFont('helvetica', 'bold');
             doc.text('Notes:', margin, yPos);
             yPos += 5;
-            
             doc.setFont('helvetica', 'normal');
             const noteLines = doc.splitTextToSize(record.notes, pageWidth - (margin * 2));
             for (let i = 0; i < noteLines.length; i++) {
@@ -629,11 +643,11 @@ export default function PeriodHistory() {
                 doc.addPage();
                 yPos = 20;
               }
-              doc.text(noteLines[i], margin, yPos);
+              doc.text(noteLines[i], margin + 5, yPos);
               yPos += 5;
             }
           }
-          
+
           yPos += 10;
         });
       }
