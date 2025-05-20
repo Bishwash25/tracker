@@ -858,60 +858,57 @@ export default function PeriodHistory() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-heading font-bold">Your Health History</h1>
-          <p className="text-muted-foreground">
-            View and track your historical health data in one place.
-          </p>
-        </div>
-        
-        <div>
-          <Button 
-            onClick={handleDownloadPDF}
-            variant="default" 
-            className="gap-2"
-            disabled={periodHistory.length === 0 && !currentPeriod.startDate && flowRecords.length === 0 && moodRecords.length === 0 && weightRecords.length === 0}
-          >
-            <FileText className="h-4 w-4" />
-            Download PDF
-          </Button>
+      <div>
+        <h1 className="text-2xl font-heading font-bold">Your Health History</h1>
+        <p className="text-muted-foreground">
+          View and track your historical health data in one place.
+        </p>
+        <div className="mt-3">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-[200px] justify-between shadow-lg bg-gradient-to-r from-[#f8f7ff] via-[#e0e7ff] to-[#f3e8ff] border-2 border-primary/40 focus:ring-2 focus:ring-primary/60">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent className="w-[200px] shadow-2xl bg-white/90 backdrop-blur-md border-primary/30">
+              <SelectItem value="period">
+                <div className="flex items-center">
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  <span className="font-bold text-black">Period Details</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="mood">
+                <div className="flex items-center">
+                  <Smile className="h-4 w-4 mr-2" />
+                  <span className="font-bold text-black">Mood Records</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="flow">
+                <div className="flex items-center">
+                  <Droplet className="h-4 w-4 mr-2" />
+                  <span className="font-bold text-black">Flow Records</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="weight">
+                <div className="flex items-center">
+                  <Scale className="h-4 w-4 mr-2" />
+                  <span className="font-bold text-black">Weight Records</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
-      
+      <div className="flex justify-end items-center gap-2">
+        <Button 
+          onClick={handleDownloadPDF}
+          variant="default" 
+          className="gap-2"
+          disabled={periodHistory.length === 0 && !currentPeriod.startDate && flowRecords.length === 0 && moodRecords.length === 0 && weightRecords.length === 0}
+        >
+          <FileText className="h-4 w-4" />
+          Download PDF
+        </Button>
+      </div>
       <div className="w-full">
-        <Select value={activeTab} onValueChange={setActiveTab}>
-          <SelectTrigger className="w-full md:w-[250px]">
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="period">
-              <div className="flex items-center">
-                <CalendarDays className="h-4 w-4 mr-2" />
-                <span>Period Details</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="mood">
-              <div className="flex items-center">
-                <Smile className="h-4 w-4 mr-2" />
-                <span>Mood Records</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="flow">
-              <div className="flex items-center">
-                <Droplet className="h-4 w-4 mr-2" />
-                <span>Flow Records</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="weight">
-              <div className="flex items-center">
-                <Scale className="h-4 w-4 mr-2" />
-                <span>Weight Records</span>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      
         <ScrollArea className="h-[500px] mt-6">
           {activeTab === "period" && (
             <div className="space-y-4">
@@ -989,6 +986,7 @@ export default function PeriodHistory() {
                                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                   <AlertDialogDescription>
                                     This will permanently delete this period record from your history.
+                                    
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -1068,7 +1066,8 @@ export default function PeriodHistory() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete mood record?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This will permanently delete this mood record from your history.
+                                      This will help to modify this mood record from your history for downloads.
+                                      If you want to delete it Permanently please go to insights.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -1187,7 +1186,8 @@ export default function PeriodHistory() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    This will permanently delete this flow record from your history.
+                                    This will help to modify this Flow record from your history for downloads.
+                                    If you want to delete it Permanently please go to insights.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -1325,7 +1325,9 @@ export default function PeriodHistory() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete weight record?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This will permanently delete this weight record from your history.
+                                      This will help to modify this Weight record from your history for downloads.
+                                      If you want to delete it Permanently please go to insights.
+
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>

@@ -507,17 +507,17 @@ export default function PeriodFlowTracker() {
         <div className="mt-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[160px] justify-between">
+              <Button variant="outline" className="w-[160px] justify-between shadow-lg bg-gradient-to-r from-[#f8f7ff] via-[#e0e7ff] to-[#f3e8ff] border-2 border-primary/40 focus:ring-2 focus:ring-primary/60">
                 {activeView === 'track' ? 'Track Your Flow' : 'Records'}
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[160px]">
+            <DropdownMenuContent className="w-[160px] shadow-2xl bg-white/90 backdrop-blur-md border-primary/30">
               <DropdownMenuItem onClick={() => setActiveView('track')}>
-                Track Your Flow
+                <span className="font-bold text-black">Track Your Flow</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveView('records')}>
-                Records
+                <span className="font-bold text-black">Records</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

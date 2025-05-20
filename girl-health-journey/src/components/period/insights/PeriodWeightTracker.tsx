@@ -440,19 +440,19 @@ export default function PeriodWeightTracker() {
         <div className="mt-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[200px] justify-between">
+              <Button variant="outline" className="w-[200px] justify-between shadow-lg bg-gradient-to-r from-[#f8f7ff] via-[#e0e7ff] to-[#f3e8ff] border-2 border-primary/40 focus:ring-2 focus:ring-primary/60">
                 {getViewTitle()} <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[200px]">
-              <DropdownMenuItem onClick={() => setViewMode("add")}>
-                Add New Weight Record
+            <DropdownMenuContent className="w-[200px] shadow-2xl bg-white/90 backdrop-blur-md border-primary/30">
+              <DropdownMenuItem onClick={() => setViewMode("add")}> 
+                <span className="font-bold text-black">Add New Weight Record</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setViewMode("records")}>
-                Weight Record
+              <DropdownMenuItem onClick={() => setViewMode("records")}> 
+                <span className="font-bold text-black">Weight Record</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setViewMode("chart")}>
-                Weight Chart
+              <DropdownMenuItem onClick={() => setViewMode("chart")}> 
+                <span className="font-bold text-black">Weight Chart</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
