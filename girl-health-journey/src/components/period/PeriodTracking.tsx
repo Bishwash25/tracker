@@ -35,12 +35,13 @@ const getOvulationWindow = (periodStart: Date, cycleLength: number) => {
 
 // Robust phase calculation for all users
 const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number, periodLength: number) => {
-  // Menstruation: periodStart to periodEnd (inclusive)
-  if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
+  // Menstruation: periodStart to periodEnd (inclusive, EXTENDED by 1 day)
+  const extendedPeriodEnd = addDays(periodEnd, 1); // +1 day
+  if (isWithinInterval(date, { start: periodStart, end: extendedPeriodEnd })) {
     return "menstruation";
   }
   // Follicular: day after periodEnd to day before ovulation
-  const follicularStart = addDays(periodEnd, 1);
+  const follicularStart = addDays(extendedPeriodEnd, 1);
   const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(periodStart, cycleLength);
   if (date >= follicularStart && date < ovulationStart) {
     return "follicular";
@@ -266,11 +267,12 @@ export default function PeriodTracking() {
   useEffect(() => {
     if (!periodStartDate || !cycleLength || typeof cycleLength !== 'number') return;
 
-    const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
+    // EXTEND periodEnd by 1 day for all calculations
+    const periodEnd = periodEndDate ? addDays(periodEndDate, 1) : addDays(periodStartDate, periodLength); // +1 day
     const nextPeriodStart = addDays(periodStartDate, cycleLength);
     setNextPeriodDate(nextPeriodStart);
     
-    // Check if currently on period
+    // Check if currently on period (extended by 1 day)
     if (currentTime >= periodStartDate && currentTime <= periodEnd) {
       const daysLeft = differenceInDays(periodEnd, currentTime) + 1;
       setCountdown(daysLeft);
@@ -282,7 +284,7 @@ export default function PeriodTracking() {
       setCountdownType("nextPeriod");
     }
 
-    // Generate sample data for period flow chart if we're in a period
+    // Generate sample data for period flow chart if we're in a period (extended by 1 day)
     if (currentTime >= periodStartDate && currentTime <= periodEnd) {
       const flowData = [];
       const totalDays = differenceInDays(periodEnd, periodStartDate) + 1;
@@ -477,12 +479,13 @@ export default function PeriodTracking() {
 
   // Updated getCyclePhase function to match scenario
   const getCyclePhase = (date: Date, PeriodStart: Date, PeriodEnd: Date, cycleLength: number, periodLength: number) => {
-    // Menstruation: periodStart to periodEnd (inclusive)
-    if (isWithinInterval(date, { start: PeriodStart, end: PeriodEnd })) {
+    // Menstruation: periodStart to periodEnd (inclusive, EXTENDED by 1 day)
+    const extendedPeriodEnd = addDays(PeriodEnd, 1); // +1 day
+    if (isWithinInterval(date, { start: PeriodStart, end: extendedPeriodEnd })) {
       return "menstruation";
     }
     // Follicular: day after periodEnd to day before ovulation
-    const follicularStart = addDays(PeriodEnd, 1);
+    const follicularStart = addDays(extendedPeriodEnd, 1);
     const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(PeriodStart, cycleLength);
     if (date >= follicularStart && date < ovulationStart) {
       return "follicular";
@@ -498,7 +501,7 @@ export default function PeriodTracking() {
       return "luteal";
     }
     // Default fallback
-    return "follicular";
+    return "Mensuration Phase";
   };
 
   const getCurrentPhase = () => {

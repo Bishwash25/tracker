@@ -20,7 +20,7 @@ const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
   };
 };
 
-// Helper to get ovulation start (3 days window, ending 14 days before next period)
+// Helper to get ovulation window (3 days, ending 14 days before next period)
 const getOvulationWindow = (periodStart: Date, cycleLength: number) => {
   const nextPeriod = addDays(periodStart, cycleLength);
   const ovulationEnd = subDays(nextPeriod, 14);
@@ -28,15 +28,17 @@ const getOvulationWindow = (periodStart: Date, cycleLength: number) => {
   return { start: ovulationStart, end: ovulationEnd };
 };
 
+// Robust phase calculation for all users (EXTEND menstruation by 1 day)
 const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number, periodLength: number) => {
-  // Menstruation: periodStart to periodEnd (inclusive)
-  if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
+  // Menstruation: periodStart to periodEnd (inclusive, EXTENDED by 1 day)
+  const extendedPeriodEnd = addDays(periodEnd, 1); // +1 day
+  if (isWithinInterval(date, { start: periodStart, end: extendedPeriodEnd })) {
     return "menstruation";
   }
   // Follicular: day after periodEnd to day before ovulation
-  const follicularStart = addDays(periodEnd, 1);
+  const follicularStartDate = addDays(extendedPeriodEnd, 1);
   const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(periodStart, cycleLength);
-  if (date >= follicularStart && date < ovulationStart) {
+  if (date >= follicularStartDate && date < ovulationStart) {
     return "follicular";
   }
   // Ovulation: ovulationStart to ovulationEnd (inclusive)
