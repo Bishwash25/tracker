@@ -333,6 +333,16 @@ export default function MoodTracker() {
   };
 
   async function onSubmit(data: FormValues) {
+    // Check if all mood parameters are still at their default value (1)
+    const allDefault = moodParameters.every(mood => {
+      const key = mood.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      return data[key] === 1;
+    });
+    if (allDefault && (!data.other_mood_description || data.other_mood_description.trim() === '')) {
+      toast.error("Please choose the option above");
+      return;
+    }
+    
     const newRecord = {
       ...data,
       id: Date.now().toString(),
@@ -443,7 +453,7 @@ export default function MoodTracker() {
                                   {index + 1}. {mood} <span className="text-red-500">*</span>
                                 </FormLabel>
                                 <span className="text-sm font-semibold">
-                                  {field.value}
+                                  {typeof field.value === 'number' ? field.value : 1}
                                 </span>
                               </div>
                               <FormControl>
@@ -451,7 +461,7 @@ export default function MoodTracker() {
                                   min={1}
                                   max={10}
                                   step={1}
-                                  value={[field.value]}
+                                  value={[typeof field.value === 'number' ? field.value : 1]}
                                   onValueChange={(vals) => field.onChange(vals[0])}
                                 />
                               </FormControl>

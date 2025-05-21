@@ -757,10 +757,11 @@ export default function PeriodFlowTracker() {
                   variant="outline" 
                   size="sm" 
                   onClick={handleDownloadPDF}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 bg-gradient-to-r from-[#f8f7ff] via-[#e0e7ff] to-[#f3e8ff] border-2 border-primary/40 focus:ring-2 focus:ring-primary/60 shadow-md"
+                  style={{ minWidth: 140 }}
                 >
                   <Download className="h-4 w-4" />
-                  Download PDF
+                  <span className="font-bold text-black">Download PDF</span>
                 </Button>
               </div>
             </div>

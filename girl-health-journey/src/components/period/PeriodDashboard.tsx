@@ -20,34 +20,35 @@ const getFertilityWindow = (periodStartDate: Date, cycleLength: number) => {
   };
 };
 
-const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number) => {
-  // Check if date is within period (menstruation phase)
+// Helper to get ovulation start (3 days window, ending 14 days before next period)
+const getOvulationWindow = (periodStart: Date, cycleLength: number) => {
+  const nextPeriod = addDays(periodStart, cycleLength);
+  const ovulationEnd = subDays(nextPeriod, 14);
+  const ovulationStart = subDays(ovulationEnd, 2); // 3 days: ovulationStart, ovulationEnd-1, ovulationEnd
+  return { start: ovulationStart, end: ovulationEnd };
+};
+
+const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number, periodLength: number) => {
+  // Menstruation: periodStart to periodEnd (inclusive)
   if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
     return "menstruation";
   }
-
-  // Calculate phase boundaries
-  const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
-  const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 1); // Adjusted to start one day later
-  // Luteal phase starts after ovulation and ends the day before next period
-  const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 2);
-  const cycleEnd = addDays(periodStart, cycleLength - 1); // The day before next period
-
-  // Check if date is in ovulation phase
-  if (date >= ovulationStart && date < lutealStart) {
-    return "ovulation";
-  }
-
-  // Check if date is in luteal phase
-  if (date >= lutealStart && date <= cycleEnd) {
-    return "luteal";
-  }
-
-  // Check if date is in follicular phase
+  // Follicular: day after periodEnd to day before ovulation
+  const follicularStart = addDays(periodEnd, 1);
+  const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(periodStart, cycleLength);
   if (date >= follicularStart && date < ovulationStart) {
     return "follicular";
   }
-
+  // Ovulation: ovulationStart to ovulationEnd (inclusive)
+  if (date >= ovulationStart && date <= ovulationEnd) {
+    return "ovulation";
+  }
+  // Luteal: day after ovulationEnd to day before next period
+  const lutealStart = addDays(ovulationEnd, 1);
+  const cycleEnd = addDays(periodStart, cycleLength - 1);
+  if (date >= lutealStart && date <= cycleEnd) {
+    return "luteal";
+  }
   // Default fallback
   return "follicular";
 };
@@ -137,7 +138,8 @@ export default function PeriodDashboard() {
       date,
       periodStartDate,
       endDate,
-      cycleLength
+      cycleLength,
+      periodLength
     );
     
     switch (phase) {
@@ -170,7 +172,7 @@ export default function PeriodDashboard() {
         <Alert variant="destructive" className="mb-4">
           <AlertTitle>Upcoming Period</AlertTitle>
           <AlertDescription>
-            Your next period is expected to start tomorrow. Please prepare and update your period details if needed.
+            Your next period is expected to start tomorrow. Please wait for auto update your details tommorrow.
           </AlertDescription>
         </Alert>
       )}
@@ -366,22 +368,29 @@ export default function PeriodDashboard() {
                 {(() => {
                   const today = new Date();
                   const endDate = periodEndDate || addDays(periodStartDate, periodLength - 1);
-                  const phase = getCyclePhase(today, periodStartDate, endDate, cycleLength);
-
+                  // Calculate days to next period
+                  let daysToNextPeriod = null;
+                  if (nextPeriodDate) {
+                    daysToNextPeriod = differenceInDays(nextPeriodDate, today);
+                  }
+                  // If today is the last day before next period, force phase to luteal
+                  let phase = getCyclePhase(today, periodStartDate, endDate, cycleLength, periodLength);
+                  if (daysToNextPeriod === 0) {
+                    phase = "luteal";
+                  }
                   let phaseInfo = {
                     name: "",
                     description: "",
                     color: "",
                     fertility: ""
                   };
-
                   switch (phase) {
                     case "menstruation":
                       phaseInfo = {
                         name: "Menstruation Phase",
                         description: "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement.",
                         color: "bg-[#ff4d6d]/20 text-[#ff4d6d]",
-                        fertility: "0% (Very low chance of conception)"
+                        fertility: "0-5% (Very low chance of conception)"
                       };
                       break;
                     case "follicular":
@@ -389,7 +398,7 @@ export default function PeriodDashboard() {
                         name: "Follicular Phase",
                         description: "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!",
                         color: "bg-[#60A5FA]/20 text-[#60A5FA]",
-                        fertility: "0-70% (Gradually increasing)"
+                        fertility: "5-70% (Gradually increasing)"
                       };
                       break;
                     case "ovulation":

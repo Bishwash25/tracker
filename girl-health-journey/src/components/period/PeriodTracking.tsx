@@ -25,6 +25,40 @@ import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
 
+// Helper to get ovulation window (3 days, ending 14 days before next period)
+const getOvulationWindow = (periodStart: Date, cycleLength: number) => {
+  const nextPeriod = addDays(periodStart, cycleLength);
+  const ovulationEnd = subDays(nextPeriod, 14);
+  const ovulationStart = subDays(ovulationEnd, 2); // 3 days: ovulationStart, ovulationEnd-1, ovulationEnd
+  return { start: ovulationStart, end: ovulationEnd };
+};
+
+// Robust phase calculation for all users
+const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number, periodLength: number) => {
+  // Menstruation: periodStart to periodEnd (inclusive)
+  if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
+    return "menstruation";
+  }
+  // Follicular: day after periodEnd to day before ovulation
+  const follicularStart = addDays(periodEnd, 1);
+  const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(periodStart, cycleLength);
+  if (date >= follicularStart && date < ovulationStart) {
+    return "follicular";
+  }
+  // Ovulation: ovulationStart to ovulationEnd (inclusive)
+  if (date >= ovulationStart && date <= ovulationEnd) {
+    return "ovulation";
+  }
+  // Luteal: day after ovulationEnd to day before next period
+  const lutealStart = addDays(ovulationEnd, 1);
+  const cycleEnd = addDays(periodStart, cycleLength - 1);
+  if (date >= lutealStart && date <= cycleEnd) {
+    return "luteal";
+  }
+  // Default fallback
+  return "follicular";
+};
+
 export default function PeriodTracking() {
   const [periodStartDate, setPeriodStartDate] = useState<Date | null>(null);
   const [periodEndDate, setPeriodEndDate] = useState<Date | null>(null);
@@ -39,6 +73,9 @@ export default function PeriodTracking() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userId, setUserId] = useState<string | null>(null);
   const [dataFetched, setDataFetched] = useState(false);
+
+  // Track if user has saved for the current period start date
+  const [showSaveReminder, setShowSaveReminder] = useState(false);
 
   // Load user data from localStorage
   useEffect(() => {
@@ -111,7 +148,7 @@ export default function PeriodTracking() {
         console.error("Error parsing period history data:", error);
       }
     }
-  }, []);
+  }, [userId]);
 
   // Fetch user period data from Firestore when userId changes or when auth event fires
   useEffect(() => {
@@ -130,14 +167,11 @@ export default function PeriodTracking() {
       }
     };
 
-    // Add event listener
     window.addEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
-
-    // Clean up
     return () => {
       window.removeEventListener(USER_AUTHENTICATED_EVENT, handleUserAuthenticated as EventListener);
     };
-  }, []);
+  }, []); // No dependencies needed
 
   // Function to fetch period data from Firestore
   const fetchPeriodDataFromFirestore = async (uid: string) => {
@@ -221,7 +255,7 @@ export default function PeriodTracking() {
     
     // Clean up the interval when component unmounts
     return () => clearInterval(timer);
-  }, []);
+  }, []); // No dependencies needed
 
   // Log whenever userId changes
   useEffect(() => {
@@ -297,7 +331,7 @@ export default function PeriodTracking() {
         toast.info("It's time to start a new period! Please review and save your new period details.");
       }
     }
-  }, [nextPeriodDate, periodStartDate, cycleLength, periodLength, currentTime]);
+  }, [nextPeriodDate, periodStartDate, cycleLength, periodLength, currentTime, periodEndDate]); // Added periodEndDate
 
   const savePeriodDataToFirestore = async () => {
     // If userId not set, try to get it directly from auth
@@ -366,8 +400,15 @@ export default function PeriodTracking() {
       return;
     }
 
+    // Validation: gap between start and end date <= 8 days
+    const daysGap = differenceInDays(periodEndDate, periodStartDate);
+    if (daysGap > 8 || typeof cycleLength !== 'number' || cycleLength < 20 || cycleLength > 36) {
+      toast.error("Please enter valid details");
+      return;
+    }
+
     // Calculate actual period length based on dates
-    const actualPeriodLength = differenceInDays(periodEndDate, periodStartDate) + 1;
+    const actualPeriodLength = daysGap + 1;
     setPeriodLength(actualPeriodLength);
 
     // Save to localStorage (keep original functionality)
@@ -414,6 +455,11 @@ export default function PeriodTracking() {
     } else {
       toast.success("Period information saved");
     }
+
+    // After successful save:
+    const saveKey = `periodSaved_${format(periodStartDate, 'yyyy-MM-dd')}`;
+    localStorage.setItem(saveKey, 'true');
+    setShowSaveReminder(false);
   };
 
   // Get current cycle phase - using the same logic as PeriodDashboard for consistency
@@ -429,30 +475,27 @@ export default function PeriodTracking() {
     };
   };
 
-  // Updated getCyclePhase function to match FertilityChart
-  const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLength: number) => {
-    // Check if date is within period (menstruation phase)
-    if (isWithinInterval(date, { start: periodStart, end: periodEnd })) {
+  // Updated getCyclePhase function to match scenario
+  const getCyclePhase = (date: Date, PeriodStart: Date, PeriodEnd: Date, cycleLength: number, periodLength: number) => {
+    // Menstruation: periodStart to periodEnd (inclusive)
+    if (isWithinInterval(date, { start: PeriodStart, end: PeriodEnd })) {
       return "menstruation";
     }
-    // Calculate phase boundaries
-    const follicularStart = addDays(periodStart, differenceInDays(periodEnd, periodStart) + 1);
-    const ovulationStart = addDays(periodStart, Math.floor(cycleLength / 2) - 1); // Adjusted to start one day later
-    // Luteal phase starts after ovulation and ends the day before next period
-    const lutealStart = addDays(periodStart, Math.floor(cycleLength / 2) + 2);
-    const cycleEnd = addDays(periodStart, cycleLength - 1); // The day before next period
-
-    // Check if date is in ovulation phase
-    if (date >= ovulationStart && date < lutealStart) {
-      return "ovulation";
-    }
-    // Check if date is in luteal phase
-    if (date >= lutealStart && date <= cycleEnd) {
-      return "luteal";
-    }
-    // Check if date is in follicular phase
+    // Follicular: day after periodEnd to day before ovulation
+    const follicularStart = addDays(PeriodEnd, 1);
+    const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(PeriodStart, cycleLength);
     if (date >= follicularStart && date < ovulationStart) {
       return "follicular";
+    }
+    // Ovulation: ovulationStart to ovulationEnd (inclusive)
+    if (date >= ovulationStart && date <= ovulationEnd) {
+      return "ovulation";
+    }
+    // Luteal: day after ovulationEnd to day before next period
+    const lutealStart = addDays(ovulationEnd, 1);
+    const cycleEnd = addDays(PeriodStart, cycleLength - 1);
+    if (date >= lutealStart && date <= cycleEnd) {
+      return "luteal";
     }
     // Default fallback
     return "follicular";
@@ -460,14 +503,17 @@ export default function PeriodTracking() {
 
   const getCurrentPhase = () => {
     if (!periodStartDate || !cycleLength || typeof cycleLength !== 'number') return "Not Set";
-    
-    // Use currentTime instead of creating a new Date() to ensure consistency
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
-    
-    // Use the updated phase determination logic
-    const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength);
-    
-    // Map the phase to the display name and fertility information
+    const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength, periodLength);
+    // Calculate days to next period
+    let daysToNextPeriod = null;
+    if (nextPeriodDate) {
+      daysToNextPeriod = differenceInDays(nextPeriodDate, currentTime);
+    }
+    // If today is the last day before next period, force phase to luteal
+    if (daysToNextPeriod === 0) {
+      return "Luteal Phase";
+    }
     switch (phase) {
       case "menstruation":
         return "Menstruation Phase";
@@ -487,13 +533,13 @@ export default function PeriodTracking() {
     if (!periodStartDate || !cycleLength || typeof cycleLength !== 'number') return "";
     
     const periodEnd = periodEndDate || addDays(periodStartDate, periodLength - 1);
-    const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength);
+    const phase = getCyclePhase(currentTime, periodStartDate, periodEnd, cycleLength, periodLength);
     
     switch (phase) {
       case "menstruation":
-        return "0% (Very low chance of conception)";
+        return "0-5% (Very low chance of conception)";
       case "follicular":
-        return "0-70% (Gradually increasing)";
+        return "5-70% (Gradually increasing)";
       case "ovulation":
         return "80-95% (Your most fertile window)";
       case "luteal":
@@ -530,10 +576,50 @@ export default function PeriodTracking() {
     return "#ffdee2"; 
   };
 
+  // Track if user has saved for the current period start date (NEW USER LOGIC)
+  useEffect(() => {
+    // Only show for new users (no period history)
+    const periodHistoryRaw = localStorage.getItem("periodHistory");
+    let isNewUser = true;
+    if (periodHistoryRaw) {
+      try {
+        const periodHistory = JSON.parse(periodHistoryRaw);
+        isNewUser = !Array.isArray(periodHistory) || periodHistory.length === 0;
+      } catch (e) {
+        isNewUser = true;
+      }
+    }
+    if (!isNewUser) {
+      setShowSaveReminder(false);
+      return;
+    }
+    if (!periodStartDate || !cycleLength) return;
+    const today = new Date();
+    const isMenstruation = isWithinInterval(today, { start: periodStartDate, end: addDays(periodStartDate, periodLength - 1) });
+    // Use a localStorage key to track if user has saved for this period start
+    const saveKey = `periodSaved_${format(periodStartDate, 'yyyy-MM-dd')}`;
+    const hasSaved = localStorage.getItem(saveKey) === 'true';
+    if (isMenstruation && !hasSaved) {
+      setShowSaveReminder(true);
+    } else {
+      setShowSaveReminder(false);
+    }
+  }, [periodStartDate, periodLength, cycleLength, currentTime]);
+
   const currentPhase = getCurrentPhase();
 
   return (
     <div className="space-y-8">
+      {/* Save Reminder Alert for new menstruation phase (only for new users) */}
+      {showSaveReminder && (
+        <Alert variant="default" className="mb-4">
+          <AlertTitle>Don't forget to save!</AlertTitle>
+          <AlertDescription>
+            Please do not forget to hit the <b>Save</b> button after editing your period details for this new menstruation phase.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div>
         {/* No Period Data Alert */}
         {!periodStartDate && (
