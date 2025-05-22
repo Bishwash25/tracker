@@ -135,6 +135,11 @@ export default function PeriodFlowTracker() {
   // Log whenever userId changes
   useEffect(() => {
     console.log("User ID changed to:", userId);
+    if (userId) {
+      setSavedRecords([]);
+      localStorage.removeItem("periodFlowTracking");
+      setDataFetched(false);
+    }
   }, [userId]);
   
   // Fetch flow records from Firestore when userId changes or on auth event

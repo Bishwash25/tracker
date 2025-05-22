@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogOut } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
-
+import { clearAppDataButPreserveUser } from "@/lib/storage-utils";
 export default function PeriodProfile() {
   const [userEmail, setUserEmail] = useState("");
 
@@ -90,13 +90,31 @@ export default function PeriodProfile() {
         title: "Logging out",
         description: "You are being logged out..."
       });
-      
-      // Sign out from Firebase without clearing localStorage data
+
+      // Sign out from Firebase with clearing localStorage data
       await signOut(auth);
-      
+
+      // Clear all app data except user authentication info
+      clearAppDataButPreserveUser();
+
+      // Clear sessionStorage completely
+      sessionStorage.clear();
+
+      // Clear relevant cookies (e.g., userData)
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name] = cookie.trim().split('=');
+        if (name === 'userData') {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
+      }
+
+      // Reset userEmail state to empty string
+      setUserEmail("");
+
       // Navigate to the login page (root path)
       navigate("/");
-      
+
     } catch (error) {
       console.error("Error signing out:", error);
       toast({

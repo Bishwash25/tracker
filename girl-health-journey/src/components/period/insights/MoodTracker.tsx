@@ -144,6 +144,12 @@ export default function MoodTracker() {
   // Log whenever userId changes
   useEffect(() => {
     console.log("User ID changed to:", userId);
+    if (userId) {
+      // Clear saved records and localStorage on user change
+      setSavedRecords([]);
+      localStorage.removeItem("moodTrackingComprehensive");
+      setDataFetched(false);
+    }
   }, [userId]);
   
   // Monitor Firebase auth state
