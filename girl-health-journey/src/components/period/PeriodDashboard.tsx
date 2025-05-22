@@ -35,16 +35,19 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
   if (isWithinInterval(date, { start: periodStart, end: extendedPeriodEnd })) {
     return "menstruation";
   }
-  // Follicular: day after periodEnd to day before ovulation
+  // Follicular: day after periodEnd to day before ovulation (EXTENDED by 1 day)
   const follicularStartDate = addDays(extendedPeriodEnd, 1);
   const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(periodStart, cycleLength);
-  if (date >= follicularStartDate && date < ovulationStart) {
+  // Extend follicular phase by 1 day extra
+  const extendedFollicularEnd = addDays(ovulationStart, 1);
+  if (date >= follicularStartDate && date < extendedFollicularEnd) {
     return "follicular";
   }
-  // Ovulation: ovulationStart to ovulationEnd (inclusive)
-  if (date >= ovulationStart && date <= ovulationEnd) {
-    return "ovulation";
-  }
+    // Ovulation: ovulationStart to ovulationEnd (inclusive, EXTENDED by 1 day)
+     const extendedOvulationEnd = addDays(ovulationEnd, 2); // +2 day
+     if (date >= ovulationStart && date <= extendedOvulationEnd) {
+       return "ovulation";
+     }
   // Luteal: day after ovulationEnd to day before next period
   const lutealStart = addDays(ovulationEnd, 1);
   const cycleEnd = addDays(periodStart, cycleLength - 1);

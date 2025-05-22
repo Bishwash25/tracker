@@ -24,6 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { USER_AUTHENTICATED_EVENT } from "@/hooks/use-auth";
+import { usePeriodUser } from "./PeriodUserContext";
 
 // Helper to get ovulation window (3 days, ending 14 days before next period)
 const getOvulationWindow = (periodStart: Date, cycleLength: number) => {
@@ -40,14 +41,17 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
   if (isWithinInterval(date, { start: periodStart, end: extendedPeriodEnd })) {
     return "menstruation";
   }
-  // Follicular: day after periodEnd to day before ovulation
-  const follicularStart = addDays(extendedPeriodEnd, 1);
+  // Follicular: day after periodEnd to day before ovulation (EXTENDED by 1 day)
+  const follicularStartDate = addDays(extendedPeriodEnd, 1);
   const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(periodStart, cycleLength);
-  if (date >= follicularStart && date < ovulationStart) {
+  // Extend follicular phase by 1 day extra
+  const extendedFollicularEnd = addDays(ovulationStart, 1);
+  if (date >= follicularStartDate && date < extendedFollicularEnd) {
     return "follicular";
   }
-  // Ovulation: ovulationStart to ovulationEnd (inclusive)
-  if (date >= ovulationStart && date <= ovulationEnd) {
+  // Ovulation: ovulationStart to ovulationEnd (inclusive, EXTENDED by 1 day)
+  const extendedOvulationEnd = addDays(ovulationEnd, 1); // +1 day
+  if (date >= ovulationStart && date <= extendedOvulationEnd) {
     return "ovulation";
   }
   // Luteal: day after ovulationEnd to day before next period
@@ -56,7 +60,7 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
   if (date >= lutealStart && date <= cycleEnd) {
     return "luteal";
   }
-  // Default fallback
+  // Default fallback (should be follicular, not typo or phase name)
   return "follicular";
 };
 
@@ -77,6 +81,7 @@ export default function PeriodTracking() {
 
   // Track if user has saved for the current period start date
   const [showSaveReminder, setShowSaveReminder] = useState(false);
+  const { setPeriodUserData } = usePeriodUser();
 
   // Load user data from localStorage
   useEffect(() => {
@@ -419,6 +424,14 @@ export default function PeriodTracking() {
     localStorage.setItem("periodLength", actualPeriodLength.toString());
     localStorage.setItem("cycleLength", cycleLength.toString());
 
+    // Update context so dashboard and others update instantly
+    setPeriodUserData({
+      periodStartDate,
+      periodEndDate,
+      periodLength: actualPeriodLength,
+      cycleLength: cycleLength as number,
+    });
+
     // Save to period history
     const existingHistory = localStorage.getItem("periodHistory");
     let periodHistory = [];
@@ -484,14 +497,17 @@ export default function PeriodTracking() {
     if (isWithinInterval(date, { start: PeriodStart, end: extendedPeriodEnd })) {
       return "menstruation";
     }
-    // Follicular: day after periodEnd to day before ovulation
-    const follicularStart = addDays(extendedPeriodEnd, 1);
+    // Follicular: day after periodEnd to day before ovulation (EXTENDED by 1 day)
+    const follicularStartDate = addDays(extendedPeriodEnd, 1);
     const { start: ovulationStart, end: ovulationEnd } = getOvulationWindow(PeriodStart, cycleLength);
-    if (date >= follicularStart && date < ovulationStart) {
+    // Extend follicular phase by 1 day extra
+    const extendedFollicularEnd = addDays(ovulationStart, 1);
+    if (date >= follicularStartDate && date < extendedFollicularEnd) {
       return "follicular";
     }
-    // Ovulation: ovulationStart to ovulationEnd (inclusive)
-    if (date >= ovulationStart && date <= ovulationEnd) {
+    // Ovulation: ovulationStart to ovulationEnd (inclusive, EXTENDED by 1 day)
+    const extendedOvulationEnd = addDays(ovulationEnd, 2); // +1 day
+    if (date >= ovulationStart && date <= extendedOvulationEnd) {
       return "ovulation";
     }
     // Luteal: day after ovulationEnd to day before next period
@@ -500,8 +516,8 @@ export default function PeriodTracking() {
     if (date >= lutealStart && date <= cycleEnd) {
       return "luteal";
     }
-    // Default fallback
-    return "Mensuration Phase";
+    // Default fallback (should be follicular, not typo or phase name)
+    return "follicular";
   };
 
   const getCurrentPhase = () => {
@@ -609,20 +625,36 @@ export default function PeriodTracking() {
     }
   }, [periodStartDate, periodLength, cycleLength, currentTime]);
 
-  const currentPhase = getCurrentPhase();
+  // New: Show save reminder alert when countdownType is 'nextPeriod', countdown is 0, and user hasn't saved new period details
+  const showSaveReminderNextDay = (() => {
+    if (countdownType === "nextPeriod" && countdown === 0 && nextPeriodDate && periodStartDate) {
+      const saveKey = `periodSaved_${format(addDays(periodStartDate, cycleLength as number), 'yyyy-MM-dd')}`;
+      const hasSaved = localStorage.getItem(saveKey) === 'true';
+      return !hasSaved;
+    }
+    return false;
+  })();
 
   return (
     <div className="space-y-8">
+      {/* All Good Alert - show at the top like dashboard */}
+      {(showSaveReminder || showSaveReminderNextDay) && (
+        <Alert variant="default" className="mb-4">
+          <AlertTitle>Don't forget to save!</AlertTitle>
+          <AlertDescription>
+            Please do not forget to hit the <b>Save</b> button after editing your period details for your new menstruation phase.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Save Reminder Alert for new menstruation phase (only for new users) */}
       {showSaveReminder && (
         <Alert variant="default" className="mb-4">
           <AlertTitle>Don't forget to save!</AlertTitle>
           <AlertDescription>
-            Please do not forget to hit the <b>Save</b> button after editing your period details for this new menstruation phase.
+            Please do not forget to hit the <b>Save</b> button after editing your period details for your new menstruation phase.
           </AlertDescription>
         </Alert>
       )}
-      
       <div>
         {/* No Period Data Alert */}
         {!periodStartDate && (
@@ -652,22 +684,30 @@ export default function PeriodTracking() {
                   </p>
                 </div>
               </div>
-              
+              {/* Show All Good Alert after countdown when countdownType is nextPeriod and countdown is 0 */}
+              {countdownType === "nextPeriod" && countdown === 0 && (
+                <Alert variant="default" className="mt-4">
+                  <AlertTitle>All good!</AlertTitle>
+                  <AlertDescription>
+                    Everything is working as expected. If you have any issues, please let us know!
+                  </AlertDescription>
+                </Alert>
+              )}
               {periodStartDate && nextPeriodDate && (
                 <div className="mt-4 flex flex-col items-center gap-2">
                   <Badge variant="outline" className="bg-[#ff4d6d]/20 text-[#ff4d6d] border-[#ff4d6d]/30 text-sm font-medium py-1">
                     Next period: {format(nextPeriodDate, "MMM d, yyyy")}
                   </Badge>
-                  <Badge variant="outline" className={cn(getPhaseColor(currentPhase), "font-medium py-1")}>
-                    {currentPhase}
+                  <Badge variant="outline" className={cn(getPhaseColor(getCurrentPhase()), "font-medium py-1")}>
+                    {getCurrentPhase()}
                   </Badge>
                   <div className="text-xs flex items-center gap-1">
                     <div 
                       className="h-2 w-2 rounded-full" 
                       style={{ 
-                        backgroundColor: currentPhase === "Menstruation Phase" ? "#ff4d6d" : 
-                          currentPhase === "Follicular Phase" ? "#60A5FA" : 
-                          currentPhase === "Ovulation Phase" ? "#34D399" : 
+                        backgroundColor: getCurrentPhase() === "Menstruation Phase" ? "#ff4d6d" : 
+                          getCurrentPhase() === "Follicular Phase" ? "#60A5FA" : 
+                          getCurrentPhase() === "Ovulation Phase" ? "#34D399" : 
                           "#9b87f5" 
                       }}
                     />
@@ -800,6 +840,8 @@ export default function PeriodTracking() {
                       <Input
                         type="date"
                         value={periodStartDate ? format(periodStartDate, "yyyy-MM-dd") : ""}
+                        min={format(subDays(new Date(), 31), "yyyy-MM-dd")}
+                        max={format(new Date(), "yyyy-MM-dd")}
                         onChange={(e) => setPeriodStartDate(new Date(e.target.value))}
                       />
                     </div>
@@ -808,6 +850,8 @@ export default function PeriodTracking() {
                       <Input
                         type="date"
                         value={periodEndDate ? format(periodEndDate, "yyyy-MM-dd") : ""}
+                        min={format(subDays(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 31), "yyyy-MM-dd")}
+                        max={format(addDays(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), 31), "yyyy-MM-dd")}
                         onChange={(e) => setPeriodEndDate(new Date(e.target.value))}
                       />
                     </div>
@@ -898,16 +942,16 @@ export default function PeriodTracking() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={cn("p-4 rounded-lg", getPhaseColor(currentPhase))}>
-                <h3 className="font-bold text-lg mb-2">{currentPhase}</h3>
+              <div className={cn("p-4 rounded-lg", getPhaseColor(getCurrentPhase()))}>
+                <h3 className="font-bold text-lg mb-2">{getCurrentPhase()}</h3>
                 <p className="text-sm">
-                  {currentPhase === "Menstruation Phase" && 
+                  {getCurrentPhase() === "Menstruation Phase" && 
                     "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement."}
-                  {currentPhase === "Follicular Phase" && 
+                  {getCurrentPhase() === "Follicular Phase" && 
                     "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!"}
-                  {currentPhase === "Ovulation Phase" && 
+                  {getCurrentPhase() === "Ovulation Phase" && 
                     "This is when pregnancy is most likely to occur. You may notice increased energy and libido."}
-                  {currentPhase === "Luteal Phase" && 
+                  {getCurrentPhase() === "Luteal Phase" && 
                     "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses."}
                 </p>
                 <div className="mt-3 flex items-center gap-2">
