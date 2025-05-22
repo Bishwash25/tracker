@@ -842,7 +842,13 @@ export default function PeriodTracking() {
                         value={periodStartDate ? format(periodStartDate, "yyyy-MM-dd") : ""}
                         min={format(subDays(new Date(), 31), "yyyy-MM-dd")}
                         max={format(new Date(), "yyyy-MM-dd")}
-                        onChange={(e) => setPeriodStartDate(new Date(e.target.value))}
+                        onChange={(e) => {
+                          if (!e.target.value) {
+                            setPeriodStartDate(null);
+                          } else {
+                            setPeriodStartDate(new Date(e.target.value));
+                          }
+                        }}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -852,7 +858,13 @@ export default function PeriodTracking() {
                         value={periodEndDate ? format(periodEndDate, "yyyy-MM-dd") : ""}
                         min={format(subDays(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 31), "yyyy-MM-dd")}
                         max={format(addDays(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), 31), "yyyy-MM-dd")}
-                        onChange={(e) => setPeriodEndDate(new Date(e.target.value))}
+                        onChange={(e) => {
+                          if (!e.target.value) {
+                            setPeriodEndDate(null);
+                          } else {
+                            setPeriodEndDate(new Date(e.target.value));
+                          }
+                        }}
                       />
                     </div>
                     <div className="grid gap-2">
