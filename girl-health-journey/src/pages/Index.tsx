@@ -26,7 +26,7 @@ const Index = () => {
             </li>
             <li className="flex items-start">
               <span className="text-lavender mr-2 text-xl">•</span>
-              <span>Monitor mood and symptom patterns throughout your cycle</span>
+              <span>Monitor mood , Flow , Weight patterns throughout your cycle</span>
             </li>
             <li className="flex items-start">
               <span className="text-lavender mr-2 text-xl">•</span>
