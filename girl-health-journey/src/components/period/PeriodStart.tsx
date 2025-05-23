@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 import { useNavigate } from "react-router-dom";
-import { format, addDays } from "date-fns";
+import { format, addDays, subMonths } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -130,7 +130,11 @@ export default function PeriodStart() {
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date > new Date()}
+                        disabled={(date) => {
+                          const today = new Date();
+                          const oneMonthBefore = subMonths(today, 1);
+                          return date > today || date < oneMonthBefore;
+                        }}
                         initialFocus
                         className={cn("p-3 pointer-events-auto")}
                       />

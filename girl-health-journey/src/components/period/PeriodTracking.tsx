@@ -50,7 +50,7 @@ const getCyclePhase = (date: Date, periodStart: Date, periodEnd: Date, cycleLeng
     return "follicular";
   }
   // Ovulation: ovulationStart to ovulationEnd (inclusive, EXTENDED by 1 day)
-  const extendedOvulationEnd = addDays(ovulationEnd, 1); // +1 day
+  const extendedOvulationEnd = addDays(ovulationEnd, 2); // +1 day
   if (date >= ovulationStart && date <= extendedOvulationEnd) {
     return "ovulation";
   }
@@ -529,10 +529,15 @@ export default function PeriodTracking() {
     if (nextPeriodDate) {
       daysToNextPeriod = differenceInDays(nextPeriodDate, currentTime);
     }
-    // If today is the last day before next period, force phase to luteal
-    if (daysToNextPeriod === 0) {
-      return "Luteal Phase";
+    // If today is the start of the second menstruation phase (nextPeriodDate), force phase to menstruation
+    if (daysToNextPeriod === cycleLength) {
+      return "Menstruation Phase";
     }
+    //If today is the last day before next period, force phase to luteal
+    //(This condition is now redundant because daysToNextPeriod === 0 is handled above)
+    if (daysToNextPeriod === 0) {
+       return "Luteal Phase";
+  }
     switch (phase) {
       case "menstruation":
         return "Menstruation Phase";
@@ -613,12 +618,11 @@ export default function PeriodTracking() {
       return;
     }
     if (!periodStartDate || !cycleLength) return;
-    const today = new Date();
-    const isMenstruation = isWithinInterval(today, { start: periodStartDate, end: addDays(periodStartDate, periodLength - 1) });
+    // Remove menstruation phase check to show alert in all phases for new users who haven't saved
     // Use a localStorage key to track if user has saved for this period start
     const saveKey = `periodSaved_${format(periodStartDate, 'yyyy-MM-dd')}`;
     const hasSaved = localStorage.getItem(saveKey) === 'true';
-    if (isMenstruation && !hasSaved) {
+    if (!hasSaved) {
       setShowSaveReminder(true);
     } else {
       setShowSaveReminder(false);
@@ -638,20 +642,38 @@ export default function PeriodTracking() {
   return (
     <div className="space-y-8">
       {/* All Good Alert - show at the top like dashboard */}
-      {(showSaveReminder || showSaveReminderNextDay) && (
-        <Alert variant="default" className="mb-4">
-          <AlertTitle>Don't forget to save!</AlertTitle>
-          <AlertDescription>
-            Please do not forget to hit the <b>Save</b> button after editing your period details for your new menstruation phase.
-          </AlertDescription>
-        </Alert>
-      )}
-      {/* Save Reminder Alert for new menstruation phase (only for new users) */}
+      {/* Determine if user is new */}
+      {(() => {
+        const periodHistoryRaw = localStorage.getItem("periodHistory");
+        let isNewUser = true;
+        if (periodHistoryRaw) {
+          try {
+            const periodHistory = JSON.parse(periodHistoryRaw);
+            isNewUser = !Array.isArray(periodHistory) || periodHistory.length === 0;
+          } catch (e) {
+            isNewUser = true;
+          }
+        }
+        // Show All Good Alert at top only if days until next period is 0 and user is NOT new
+        const showAllGoodAlertTop = countdownType === "nextPeriod" && countdown === 0 && !isNewUser;
+        if (showAllGoodAlertTop) {
+          return (
+            <Alert variant="default" className="mb-4">
+              <AlertTitle>Don't forget to save!</AlertTitle>
+              <AlertDescription>
+                Please do not forget to hit the <b>Save</b> button after editing your period details for your period details.
+              </AlertDescription>
+            </Alert>
+          );
+        }
+        return null;
+      })()}
+         {/* Save Reminder Alert for new menstruation phase (only for new users) */}
       {showSaveReminder && (
         <Alert variant="default" className="mb-4">
           <AlertTitle>Don't forget to save!</AlertTitle>
           <AlertDescription>
-            Please do not forget to hit the <b>Save</b> button after editing your period details for your new menstruation phase.
+            Please do not forget to hit the <b>Save</b> button after editing your period details for your Period details.
           </AlertDescription>
         </Alert>
       )}
