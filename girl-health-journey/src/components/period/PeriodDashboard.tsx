@@ -370,72 +370,79 @@ export default function PeriodDashboard() {
           <CardContent>
             {periodStartDate && (
               <div>
-                {(() => {
-                  const today = new Date();
-                  const endDate = periodEndDate || addDays(periodStartDate, periodLength - 1);
-                  // Calculate days to next period
-                  let daysToNextPeriod = null;
-                  if (nextPeriodDate) {
-                    daysToNextPeriod = differenceInDays(nextPeriodDate, today);
-                  }
-                  // If today is the last day before next period, force phase to luteal
-                  let phase = getCyclePhase(today, periodStartDate, endDate, cycleLength, periodLength);
-                  if (daysToNextPeriod === 0) {
-                    phase = "luteal";
-                  }
-                  let phaseInfo = {
-                    name: "",
-                    description: "",
-                    color: "",
-                    fertility: ""
-                  };
-                  switch (phase) {
-                    case "menstruation":
-                      phaseInfo = {
-                        name: "Menstruation Phase",
-                        description: "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement.",
-                        color: "bg-[#ff4d6d]/20 text-[#ff4d6d]",
-                        fertility: "0-5% (Very low chance of conception)"
-                      };
-                      break;
-                    case "follicular":
-                      phaseInfo = {
-                        name: "Follicular Phase",
-                        description: "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!",
-                        color: "bg-[#60A5FA]/20 text-[#60A5FA]",
-                        fertility: "5-70% (Gradually increasing)"
-                      };
-                      break;
-                    case "ovulation":
-                      phaseInfo = {
-                        name: "Ovulation Phase",
-                        description: "This is when pregnancy is most likely to occur. You may notice increased energy and libido.",
-                        color: "bg-[#34D399]/20 text-[#34D399]",
-                        fertility: "80-95% (Your most fertile window)"
-                      };
-                      break;
-                    case "luteal":
-                      phaseInfo = {
-                        name: "Luteal Phase",
-                        description: "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses.",
-                        color: "bg-[#9b87f5]/20 text-[#9b87f5]",
-                        fertility: "5% (Very low chance of conception)"
-                      };
-                      break;
-                  }
+{(() => {
+  const today = new Date();
+  const endDate = periodEndDate || addDays(periodStartDate, periodLength - 1);
+  // Calculate days to next period
+  let daysToNextPeriod = null;
+  if (nextPeriodDate) {
+    daysToNextPeriod = differenceInDays(nextPeriodDate, today);
+  }
+  // If today is the last day before next period, force phase to luteal
+  let phase = getCyclePhase(today, periodStartDate, endDate, cycleLength, periodLength);
+  if (daysToNextPeriod === 0) {
+    phase = "luteal";
+  }
+  // Check if today is the start of the second menstruation phase
+  if (nextThreeCycles.length > 1) {
+    const secondPeriodStart = nextThreeCycles[1].periodStart;
+    if (isSameDay(today, secondPeriodStart)) {
+      phase = "menstruation";
+    }
+  }
+  let phaseInfo = {
+    name: "",
+    description: "",
+    color: "",
+    fertility: ""
+  };
+  switch (phase) {
+    case "menstruation":
+      phaseInfo = {
+        name: "Menstruation Phase",
+        description: "Your body is shedding the uterine lining. Focus on self-care, rest, and gentle movement.",
+        color: "bg-[#ff4d6d]/20 text-[#ff4d6d]",
+        fertility: "0-5% (Very low chance of conception)"
+      };
+      break;
+    case "follicular":
+      phaseInfo = {
+        name: "Follicular Phase",
+        description: "Estrogen levels are rising as follicles mature. Your energy is increasing - great time for new projects!",
+        color: "bg-[#60A5FA]/20 text-[#60A5FA]",
+        fertility: "5-70% (Gradually increasing)"
+      };
+      break;
+    case "ovulation":
+      phaseInfo = {
+        name: "Ovulation Phase",
+        description: "This is when pregnancy is most likely to occur. You may notice increased energy and libido.",
+        color: "bg-[#34D399]/20 text-[#34D399]",
+        fertility: "80-95% (Your most fertile window)"
+      };
+      break;
+    case "luteal":
+      phaseInfo = {
+        name: "Luteal Phase",
+        description: "Progesterone rises to prepare for pregnancy. You might experience PMS symptoms as this phase progresses.",
+        color: "bg-[#9b87f5]/20 text-[#9b87f5]",
+        fertility: "5% (Very low chance of conception)"
+      };
+      break;
+  }
 
-                  return (
-                    <div className={cn("p-4 rounded-lg", phaseInfo.color)}>
-                      <h3 className="font-bold text-lg mb-2">{phaseInfo.name}</h3>
-                      <p className="text-sm mb-2">{phaseInfo.description}</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-xs font-medium">Fertility:</span>
-                        <Badge variant="outline" className="text-xs">{phaseInfo.fertility}</Badge>
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: phaseInfo.color.includes("#ff4d6d") ? "#ff4d6d" : phaseInfo.color.includes("#60A5FA") ? "#60A5FA" : phaseInfo.color.includes("#34D399") ? "#34D399" : "#9b87f5" }} />
-                      </div>
-                    </div>
-                  );
-                })()}
+  return (
+    <div className={cn("p-4 rounded-lg", phaseInfo.color)}>
+      <h3 className="font-bold text-lg mb-2">{phaseInfo.name}</h3>
+      <p className="text-sm mb-2">{phaseInfo.description}</p>
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-xs font-medium">Fertility:</span>
+        <Badge variant="outline" className="text-xs">{phaseInfo.fertility}</Badge>
+        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: phaseInfo.color.includes("#ff4d6d") ? "#ff4d6d" : phaseInfo.color.includes("#60A5FA") ? "#60A5FA" : phaseInfo.color.includes("#34D399") ? "#34D399" : "#9b87f5" }} />
+      </div>
+    </div>
+  );
+})()}
               </div>
             )}
           </CardContent>
