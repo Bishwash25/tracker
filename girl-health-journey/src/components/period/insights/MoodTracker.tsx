@@ -58,7 +58,6 @@ const moodParameters = [
   "Increased Sensitivity to Pain",
   "Lack of Interest in Intimacy",
   "Increased Need for Comfort & Support",
-  "Temporary Confidence Boost",
   "Impatience & Short Attention Span"
 ];
 
@@ -490,7 +489,7 @@ export default function MoodTracker() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-base font-medium">
-                                16. Other (describe your moods in a sentences)
+                                15. Other (describe your moods in a sentences)
                               </FormLabel>
                               <FormControl>
                                 <Input placeholder="Describe other mood if applicable" {...field} />
@@ -636,7 +635,7 @@ export default function MoodTracker() {
                           {record.other_mood_description && (
                             <div className="grid grid-cols-2 gap-2">
                               <div className="text-sm font-medium">
-                                16. Other: {record.other_mood_description}
+                                15. Other: {record.other_mood_description}
                               </div>
                               <div className="flex items-center gap-2">
                                 {typeof record.other_mood_intensity === 'number' && (
