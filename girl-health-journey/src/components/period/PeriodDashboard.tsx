@@ -370,7 +370,7 @@ export default function PeriodDashboard() {
           <CardContent>
             {periodStartDate && (
               <div>
-{(() => {
+  {(() => {
   const today = new Date();
   const endDate = periodEndDate || addDays(periodStartDate, periodLength - 1);
   // Calculate days to next period
@@ -383,10 +383,11 @@ export default function PeriodDashboard() {
   if (daysToNextPeriod === 0) {
     phase = "luteal";
   }
-  // Check if today is the start of the second menstruation phase
+  // Check if today is the start of the second menstruation phase or second period countdown is less than 0
   if (nextThreeCycles.length > 1) {
     const secondPeriodStart = nextThreeCycles[1].periodStart;
-    if (isSameDay(today, secondPeriodStart)) {
+    const daysToSecondPeriod = differenceInDays(secondPeriodStart, today);
+    if (isSameDay(today, secondPeriodStart) || daysToSecondPeriod < 0) {
       phase = "menstruation";
     }
   }

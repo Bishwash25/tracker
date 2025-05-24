@@ -530,7 +530,7 @@ export default function PeriodTracking() {
       daysToNextPeriod = differenceInDays(nextPeriodDate, currentTime);
     }
     // If today is the start of the second menstruation phase (nextPeriodDate), force phase to menstruation
-    if (daysToNextPeriod === cycleLength) {
+    if (daysToNextPeriod === cycleLength || daysToNextPeriod < 0) {
       return "Menstruation Phase";
     }
     //If today is the last day before next period, force phase to luteal
